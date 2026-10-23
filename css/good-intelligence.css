@@ -314,7 +314,22 @@
 .gi-market-alerts li { padding: 4px 6px; border: 1px solid rgba(84, 214, 180, 0.18); border-radius: 4px; color: var(--gi-green); background: rgba(84, 214, 180, 0.045); font-size: 8px; }
 .gi-market-no-signal, .gi-market-divergence { margin-top: 8px; color: var(--gi-dim); font-size: 8px; line-height: 1.45; }
 .gi-market-disclaimer { margin-top: 9px; padding-top: 8px; border-top: 1px solid var(--gi-border); color: var(--gi-faint); font-size: 8px; line-height: 1.5; }
-.gi-market-charts-panel { min-height: 330px; }
+.gi-financial-model-dashboard {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 600px), 1fr));
+  gap: 12px;
+  align-items: start;
+}
+.gi-financial-model-dashboard > section { min-width: 0; }
+.gi-market-charts-panel {
+  min-width: 0;
+  min-height: 330px;
+  padding: 12px;
+  border: 1px solid var(--gi-border);
+  border-radius: 10px;
+  background: linear-gradient(145deg, rgba(10, 17, 29, .92), rgba(7, 12, 21, .98));
+}
+.gi-orb2-panel { min-width: 0; }
 .gi-chart-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 12px; padding: 12px 14px; border: 1px solid var(--gi-border); border-radius: 9px; background: linear-gradient(120deg, rgba(16, 26, 43, 0.9), rgba(10, 17, 29, 0.8)); }
 .gi-chart-toolbar h3 { margin-top: 3px; color: var(--gi-ink); font-size: 15px; font-weight: 650; }
 .gi-chart-toolbar p:last-child { margin-top: 4px; color: var(--gi-dim); font-size: 9px; }

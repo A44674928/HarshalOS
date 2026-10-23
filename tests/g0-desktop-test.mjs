@@ -623,14 +623,22 @@ if (giApp) {
   ok(giDetailText.includes("NO SIGNED ATTESTATION · API-REPORTED"), "unsigned external packets remain clearly labeled as API-reported rather than independently verified");
   ok(giDetailText.includes("VFI + Fibonacci Bands + WaveTrend") && giDetailText.includes("SYNTHETIC MARKET DATA · NOT LIVE"), "optional technical context renders separately and labels its OHLCV bars synthetic");
   ok(giDetailText.includes("PRICE/VOLUME CONTEXT · NOT ASSURANCE"), "market indicators do not merge into the source/claim assurance score");
-  const marketTab = giWindow && giWindow.body.querySelector('[data-gi-view="markets"]');
-  if (marketTab) marketTab.click();
+  const financialModelTab = giWindow && giWindow.body.querySelector('[data-gi-view="orb2"]');
+  const financialModelPanel = giWindow && giWindow.body.querySelector("[data-gi-financial-model-panel]");
   const marketPanel = giWindow && giWindow.body.querySelector("[data-gi-markets-panel]");
+  const orbPanel = giWindow && giWindow.body.querySelector("[data-gi-orb2-panel]");
+  const orbHost = giWindow && giWindow.body.querySelector("[data-gi-orb2-host]");
+  const orbCallCountBeforeOpen = giCalls.filter(call => /\/orb2\//.test(call.url)).length;
+  if (financialModelTab) financialModelTab.click();
+  await new Promise(resolve => setImmediate(resolve));
+  await new Promise(resolve => setImmediate(resolve));
+  const initialOrbRequests = giCalls.filter(call => /\/orb2\//.test(call.url)).slice(orbCallCountBeforeOpen);
   const marketSelect = giWindow && giWindow.body.querySelector("[data-gi-market-select]");
   const marketHost = giWindow && giWindow.body.querySelector("[data-gi-market-chart-host]");
   const marketProvider = giWindow && giWindow.body.querySelector("[data-gi-market-provider]");
   const marketInterval = giWindow && giWindow.body.querySelector("[data-gi-market-interval]");
-  ok(!!(marketTab && marketPanel && marketPanel.hidden === false), "Market Charts is a dedicated navigable dashboard tab");
+  ok(!!(financialModelTab && financialModelPanel && !financialModelPanel.hidden && marketPanel && !marketPanel.hidden && orbPanel && !orbPanel.hidden), "one branded Financial Model view presents Market Charts and the Orb 2 field together");
+  ok(initialOrbRequests.length <= 2, `opening the combined package reads only the Orb 2 field and saved-beat probe (${initialOrbRequests.length} requests), with no Disc fan-out`);
   ok(!!(marketProvider && marketProvider.value === "tickerbot" && marketProvider.querySelectorAll("option")[0].attrs.value === "tickerbot" && marketProvider.querySelectorAll("option")[1].attrs.value === "demo"), "Tickerbot Live is the first dropdown option and the default data source");
   ok(!!(marketInterval && marketInterval.disabled === false), "the default live source enables bar intervals");
   if (marketProvider) { marketProvider.value = "demo"; dispatch(marketProvider, "change"); }
@@ -655,7 +663,7 @@ if (giApp) {
   ok(!!(marketSelect && marketSelect.disabled && marketHost.textContent.includes("No tracked tickers match") && marketHost.querySelectorAll("svg").length === 0), "an unmatched search displays an empty state rather than the previous ticker's chart");
   if (marketClear) marketClear.click();
   ok(!!(marketSelect && !marketSelect.disabled && marketSelect.querySelectorAll("option").length === 4 && marketSearch.value === "" && marketSearch._focused), "clearing restores the watchlist and keyboard focus");
-  const dashboardCalls = () => giCalls.filter(call => !call.url.includes("/market/tickerbot/bars?"));
+  const dashboardCalls = () => giCalls.filter(call => !call.url.includes("/market/tickerbot/bars?") && !/\/orb2\//.test(call.url));
   ok(dashboardCalls().length === 3 && giCalls.every(call => call.options.method === "GET"), "local demo ticker searches issue no extra API calls");
   ok(giCalls.every(call => call.url.startsWith("/api/good-intelligence/v1/")), "the default client stays on the same-origin demo API instead of calling the live host");
   ok(giCalls.some(call => call.url.endsWith("/content/me") && call.options.credentials === "include"), "the protected member feed can use an existing GI session cookie");
@@ -731,16 +739,25 @@ if (giApp) {
   if (marketClear) marketClear.click();
   await new Promise(resolve => setImmediate(resolve));
   await new Promise(resolve => setImmediate(resolve));
-  const orbTab = giWindow && giWindow.body.querySelector('[data-gi-view="orb2"]');
-  const orbPanel = giWindow && giWindow.body.querySelector("[data-gi-orb2-panel]");
-  const orbHost = giWindow && giWindow.body.querySelector("[data-gi-orb2-host]");
+  const orbTimeframeBeforeChartChange = orbHost && orbHost.querySelector("[data-gi-orb2-timeframe]");
+  if (marketInterval) {
+    marketInterval.value = "1h";
+    dispatch(marketInterval, "change");
+  }
+  await new Promise(resolve => setImmediate(resolve));
+  await new Promise(resolve => setImmediate(resolve));
+  const orbTimeframeAfterChartChange = orbHost && orbHost.querySelector("[data-gi-orb2-timeframe]");
+  ok(!!(orbTimeframeBeforeChartChange && orbTimeframeBeforeChartChange.value === "1d" &&
+    marketInterval && marketInterval.value === "1h" && orbTimeframeAfterChartChange && orbTimeframeAfterChartChange.value === "1d"),
+    "changing Market Charts back to 1h leaves Orb 2 at its independent 1d timeframe");
+  const orbTab = financialModelTab;
   const removedChartView = ["trading", "view"].join("");
   const removedChartPanel = ["data-gi-", "tv-panel"].join("");
   ok(!giWindow.body.querySelector(`[data-gi-view="${removedChartView}"]`) && !giWindow.body.querySelector(`[${removedChartPanel}]`),
     "the removed chart tab and panel are absent");
-  ok(!!(orbTab && orbPanel && orbPanel.hidden === true && orbHost), "the Orb 2 tab and lazy host stay hidden until selected");
+  ok(!!(orbTab && orbPanel && orbPanel.hidden === false && orbHost), "the Orb 2 field is shown alongside charts inside the selected combined dashboard");
   const tabLabels = giWindow ? giWindow.body.querySelectorAll(".gi-tab").map(button => button.textContent.trim()) : [];
-  ok(tabLabels.join(" > ") === "News > Market Charts > Financial Model > NAB Discs > Intel feed > Rankings", "the main tab strip keeps Market Charts, the branded Financial Model, NAB Discs, and the News subviews");
+  ok(tabLabels.join(" > ") === "News > Financial Model > NAB Discs > Intel feed > Rankings", "the main tab strip presents one branded Financial Model tab alongside NAB Discs and the News subviews");
 
   const callsBeforeOrb = giCalls.length;
   if (orbTab) orbTab.click();
@@ -753,7 +770,7 @@ if (giApp) {
   ok(!!orbCanvasStatus && /LOCAL \/ VISUAL PATHS ONLY|CANVAS UNAVAILABLE/.test(orbCanvasStatus.textContent),
     "the canvas line states its own state — local visual traces, or an unavailable canvas with the beat log and inspector still active");
   ok(!!modelFullscreen, "the beat model stays full-screen capable");
-  ok(!!(orbPanel && orbPanel.hidden === false), "opening Orb 2 reveals the local OCM panel");
+  ok(!!(orbPanel && orbPanel.hidden === false), "the combined Financial Model keeps the local OCM panel visible beside charts");
   ok(!!orbHost.querySelector("[data-gi-orb2-disc]"), "Orb 2 opens the carried-over model with the five reviewed Discs");
   const orbCanvasShell = orbHost.querySelector(".gi-orb2-canvas-shell");
   const orbFlowReadout = orbHost.querySelector("[data-gi-orb2-flow-readout]");
@@ -763,9 +780,9 @@ if (giApp) {
   ok(!!orbHost.querySelector("[data-gi-orb2-origin-status]"), "Center Origin reports the gate, the phase, and UTS");
   ok(orbText.includes("ORIGIN · CPU"), "the origin is labeled as the CPU the Human Key secures");
   ok(!orbHost.querySelector("[data-gi-orb2-fractal-status]") && !orbHost.querySelector("[data-gi-orb2-fractal]"),
-    "no fractal frame line or toggle ships with the market view");
+    "no fractal frame line or toggle ships with the combined Financial Model view");
   ok(!orbHost.querySelector("[data-nab-select]"), "Orb 2 no longer hands its host to the NAB composite field");
-  ok(orbRequests.length <= 2, `opening Orb 2 takes at most the first beat and its saved-beat probe (${orbRequests.length} calls), never a Disc fan-out`);
+  ok(initialOrbRequests.length <= 2, `opening the combined dashboard takes at most the first Orb 2 beat and saved-beat probe (${initialOrbRequests.length} calls), never a Disc fan-out`);
   ok(orbRequests.every(call => call.options.credentials === "same-origin" && call.url.startsWith("/api/")),
     "the calls made on open are same-origin Worker routes only");
   const nabTab = giWindow && giWindow.body.querySelector('[data-gi-view="nabdiscs"]');

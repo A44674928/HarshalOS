@@ -52,7 +52,7 @@
     title: "Good Intelligence",
     short: "Good Intelligence",
     glyph: "∅",
-    desc: "Read-only intel, market charts, and a live Characters-powered Orb 2 3D OCM beat model",
+    desc: "Read-only intel and The Harshal Priyavadan Patel Financial Model, combining market charts with Orb 2",
     // The reviewed Tickerbot allowlist this app searches over, exposed as read-only
     // metadata so tests can prove it matches the Worker's copy.
     tickerbotWatchlist: TICKERBOT_WATCHLIST,
@@ -92,6 +92,7 @@
         marketProvider: "tickerbot",
         marketQuery: "",
         marketInterval: "1h",
+        orb2Interval: "1h",
         marketData: {},
         marketPending: new Set(),
         marketGeneration: 0,
@@ -136,8 +137,7 @@
                 </div>
                 <nav class="gi-tabs" aria-label="Good Intelligence views">
                   <button type="button" class="gi-tab active" data-gi-view="news" aria-pressed="true">News</button>
-                  <button type="button" class="gi-tab" data-gi-view="markets" aria-pressed="false">Market Charts</button>
-                  <button type="button" class="gi-tab" data-gi-view="orb2" aria-pressed="false" aria-label="Open the Harshal Priyavadan Patel Financial Model · Good Intelligence Orb 2">Financial Model</button>
+                  <button type="button" class="gi-tab" data-gi-view="orb2" aria-pressed="false" aria-label="Open The Harshal Priyavadan Patel Financial Model with Market Charts and the Good Intelligence Orb 2 field">Financial Model</button>
                   <button type="button" class="gi-tab" data-gi-view="nabdiscs" aria-pressed="false">NAB Discs</button>
                 </nav>
               </div>
@@ -174,31 +174,33 @@
                 <div class="gi-empty gi-panel-message" data-gi-ranking-message></div>
               </section>
 
-              <section class="gi-market-charts-panel" data-gi-markets-panel aria-label="Market ticker charts" hidden>
-                <div class="gi-chart-toolbar">
-                  <div><p class="gi-eyebrow">PRICE / VOLUME VISUALIZATION</p><h3>Market Charts</h3><p>VFI + Fibonacci Bands with WaveTrend context</p></div>
-                  <div class="gi-chart-controls">
-                    <label class="gi-chart-control"><span>DATA SOURCE</span><select data-gi-market-provider aria-label="Select market data source"><option value="tickerbot" selected>Tickerbot Live</option><option value="demo">Synthetic demo</option></select></label>
-                    <label class="gi-chart-control"><span>SELECT TICKER</span><select data-gi-market-select aria-label="Select market ticker"></select></label>
-                    <label class="gi-chart-control"><span>BAR INTERVAL</span><select data-gi-market-interval aria-label="Select bar interval"><option value="1h">1 hour</option><option value="1d">1 day</option></select></label>
+              <div class="gi-financial-model-dashboard" data-gi-financial-model-panel aria-label="The Harshal Priyavadan Patel Financial Model" hidden>
+                <section class="gi-market-charts-panel" data-gi-markets-panel aria-label="Financial Model market charts" hidden>
+                  <div class="gi-chart-toolbar">
+                    <div><p class="gi-eyebrow">HPP FINANCIAL MODEL · MARKET CHARTS</p><h3>Price / Volume Context</h3><p>Provider-attributed OHLCV · VFI · logarithmic Fibonacci bands · WaveTrend</p></div>
+                    <div class="gi-chart-controls">
+                      <label class="gi-chart-control"><span>DATA SOURCE</span><select data-gi-market-provider aria-label="Select chart data source"><option value="tickerbot" selected>Tickerbot Live</option><option value="demo">Synthetic demo</option></select></label>
+                      <label class="gi-chart-control"><span>SELECT TICKER</span><select data-gi-market-select aria-label="Select chart ticker"></select></label>
+                      <label class="gi-chart-control"><span>BAR INTERVAL</span><select data-gi-market-interval aria-label="Select chart bar interval"><option value="1h">1 hour</option><option value="1d">1 day</option></select></label>
+                    </div>
                   </div>
-                </div>
-                <div class="gi-market-search-tools">
-                  <label class="gi-search">
-                    <span class="gi-sr-only">Search tracked tickers by symbol or company</span>
-                    <span class="gi-search-icon" aria-hidden="true">⌕</span>
-                    <input type="search" autocomplete="off" spellcheck="false" maxlength="80" placeholder="Search ticker or company…" data-gi-market-search>
-                  </label>
-                  <button class="gi-button" type="button" data-gi-market-clear aria-label="Clear ticker search">Clear</button>
-                  <span class="gi-result-count" data-gi-market-count role="status" aria-live="polite"></span>
-                </div>
-                <p class="gi-market-search-help" data-gi-market-search-help></p>
-                <div data-gi-market-chart-host aria-live="polite"></div>
-              </section>
+                  <div class="gi-market-search-tools">
+                    <label class="gi-search">
+                      <span class="gi-sr-only">Search tracked tickers by symbol or company</span>
+                      <span class="gi-search-icon" aria-hidden="true">⌕</span>
+                      <input type="search" autocomplete="off" spellcheck="false" maxlength="80" placeholder="Search ticker or company…" data-gi-market-search>
+                    </label>
+                    <button class="gi-button" type="button" data-gi-market-clear aria-label="Clear ticker search">Clear</button>
+                    <span class="gi-result-count" data-gi-market-count role="status" aria-live="polite"></span>
+                  </div>
+                  <p class="gi-market-search-help" data-gi-market-search-help></p>
+                  <div data-gi-market-chart-host aria-live="polite"></div>
+                </section>
 
-              <section class="gi-orb2-panel" data-gi-orb2-panel aria-label="Orb 2 3D OCM model" hidden>
-                <div data-gi-orb2-host aria-live="polite"></div>
-              </section>
+                <section class="gi-orb2-panel" data-gi-orb2-panel aria-label="Financial Model Orb 2 five-Disc 3D market-context field" hidden>
+                  <div data-gi-orb2-host aria-live="polite"></div>
+                </section>
+              </div>
 
               <section class="gi-nab-panel" data-gi-nab-panel aria-label="NAB Discs composite field" hidden>
                 <div data-gi-nab-host aria-live="polite"></div>
@@ -662,9 +664,9 @@
       }
 
       function drawMarketCharts() {
-        // Charts are drawn only while their tab is visible, so opening the desk
-        // never spends a bars request the reviewer did not ask for.
-        if (state.view !== "markets") return;
+        // Charts are drawn only while the combined Financial Model dashboard
+        // is visible, so opening the desk never spends an unrequested bars call.
+        if (state.view !== "orb2") return;
         syncMarketControls();
         const selection = drawMarketSelection();
         if (selection.status !== "ok") {
@@ -873,7 +875,7 @@
         }
         state.orb2Engine = Orb2.mount(orb2Host, {
           tickers: TICKERBOT_WATCHLIST,
-          timeframe: state.marketInterval,
+          timeframe: state.orb2Interval,
           onClearBeats: () => {
             body.ownerDocument.dispatchEvent(new body.ownerDocument.defaultView.CustomEvent("harshalos:characters-beats:clear"));
             const status = orb2Host.querySelector("[data-gi-orb2-beat-status]");
@@ -899,12 +901,11 @@
             }
           },
           onTimeframeChange: timeframe => {
-            state.marketInterval = timeframe;
+            state.orb2Interval = timeframe;
             if (state.orb2Engine) state.orb2Engine.destroy();
             state.orb2Engine = null;
             orb2Host.innerHTML = "";
             drawOrb2();
-            drawMarketPanels();
           }
         });
       }
@@ -928,29 +929,28 @@
         const newsView = state.view === "news";
         const feedView = newsView && state.newsSubview === "feed";
         const rankingsView = newsView && state.newsSubview === "rankings";
-        const marketsView = state.view === "markets";
-        const orb2View = state.view === "orb2";
+        const financialModelView = state.view === "orb2";
+        const orb2View = financialModelView;
         const nabView = state.view === "nabdiscs";
-        body.querySelector(".gi-app")?.classList.toggle("gi-orb2-active", orb2View);
+        body.querySelector(".gi-app")?.classList.toggle("gi-orb2-active", financialModelView);
         $("[data-gi-feed-panel]").hidden = !feedView;
         $("[data-gi-news-tabs]").hidden = !newsView;
         $("[data-gi-rankings-panel]").hidden = !rankingsView;
-        $("[data-gi-markets-panel]").hidden = !marketsView;
-        $("[data-gi-orb2-panel]").hidden = !orb2View;
+        $("[data-gi-financial-model-panel]").hidden = !financialModelView;
+        $("[data-gi-markets-panel]").hidden = !financialModelView;
+        $("[data-gi-orb2-panel]").hidden = !financialModelView;
         $("[data-gi-nab-panel]").hidden = !nabView;
         if (state.orb2Engine) state.orb2Engine.setVisible(orb2View);
         if (state.nabEngine) state.nabEngine.setVisible(nabView);
-        if (orb2View) drawOrb2();
+        if (financialModelView) drawOrb2();
         if (nabView) drawNabDiscs();
         $("[data-gi-view-title]").textContent = newsView ? (feedView ? "Member intel feed" : "Network rankings")
-            : marketsView ? "Market Charts"
-              : nabView ? "NAB Discs · composite field" : "Financial Model · Orb 2";
+            : nabView ? "NAB Discs · composite field" : "The Harshal Priyavadan Patel Financial Model";
         $("[data-gi-view-description]").textContent = feedView
           ? "Signals returned by the configured Good Intelligence API; assurance is assessed separately."
           : rankingsView ? "Public network ranking data returned by the Good Intelligence API."
-            : marketsView ? "Stock-price line charts with VFI, Fibonacci bands, and WaveTrend overlays from API-supplied OHLCV."
-              : nabView ? "119 NAB-aligned composites joining institutions, market observations, and physical designs. Alignment is editorial context, not a rating or a recommendation."
-                  : "A display-only 3D OCM model over the reviewed field. Provider observations route through the same-origin Worker; it sends no OCM message, no trade or order, and confers no authority. The financial-model brand does not imply a valuation or forecast.";
+            : nabView ? "119 NAB-aligned composites joining institutions, market observations, and physical designs. Alignment is editorial context, not a rating or a recommendation."
+              : "One branded dashboard with independently sourced Market Charts and the five-Disc Orb 2 field. Each keeps its own data path and display-only mathematics; no signal, valuation, forecast, recommendation, trade, or authority is produced.";
         body.querySelectorAll("[data-gi-view]").forEach(button => {
           const active = button.dataset.giView === state.view;
           button.classList.toggle("active", active);
@@ -1014,7 +1014,7 @@
       }
 
       body.querySelectorAll("[data-gi-view]").forEach(button => button.addEventListener("click", () => {
-        state.view = ["news", "markets", "orb2", "nabdiscs"].includes(button.dataset.giView) ? button.dataset.giView : "news";
+        state.view = ["news", "orb2", "nabdiscs"].includes(button.dataset.giView) ? button.dataset.giView : "news";
         updateView();
         drawMarketPanels();
       }));

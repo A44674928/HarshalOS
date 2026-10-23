@@ -1,76 +1,76 @@
 # The Harshal Priyavadan Patel Financial Model
 
-**Product line:** Good Intelligence · Orb 2  
-**Model class:** Display-only, provider-attributed market-context model  
-**Package scope:** Brand and product documentation for the existing Orb 2 system. No market logic, provider rules, assumptions, or data were changed to apply this brand.
+**Product line:** Good Intelligence · Orb 2
+**Attribution:** Harshal Priyavadan Patel
+**Model class:** Provider-attributed market-context visualization; display-only
+**Package revision:** 2026-10-23
 
-## Product identity
+## Product identity and scope
 
-**The Harshal Priyavadan Patel Financial Model** is the product name for the market-context experience in **Good Intelligence → Financial Model · Orb 2**. The HPP monogram is a compact UI mark; the full product name is the canonical brand.
+**The Harshal Priyavadan Patel Financial Model** is the branded, combined dashboard in **Good Intelligence → Financial Model**. It presents two neighboring but computationally independent surfaces:
 
-**Positioning:** An attribution-first, five-Disc market-context visualization. Orb 2 renders stored observations from reviewed provider routes as an interactive 3D field, with source, status, freshness, and missing-data state kept visible.
+1. **Market Charts** — a user-selected ticker's provider-attributed OHLCV history, with price/logarithmic Fibonacci bands, VFI, and WaveTrend context. The user chooses Tickerbot Live or an explicitly synthetic demo source and a 1-hour or 1-day bar interval.
+2. **Orb 2** — the five-Disc, server-field-driven 3D market-context visualization (Stocks, FX, Crypto, Futures, and Indices), including its own selected ticker/timeframe, field status, source/freshness labels, and display geometry.
 
-> **Meaning of “Financial Model” here:** this is a brand name for the Orb 2 market-context system. Orb 2 is not a discounted-cash-flow model, company valuation, financial-statement forecast, portfolio optimizer, P&L ledger, risk-tolerance assessment, or investment research recommendation.
+The combined view is a presentation and navigation change, **not a new calculation that merges a chart ticker with Orb 2**. The chart's selected ticker/provider/bar interval and Orb 2's field/timeframe are independent. Each surface keeps its existing data path, cache, provenance, and missing-input behavior. Changing one interval must not silently change the other.
 
-## What is included
+The scope is Good Intelligence **Market Charts + Orb 2**. Separate real-estate pro formas and the paper-trading P&L application are not included in this product or its ZIP.
 
-| Package layer | Responsibility | Main source |
-|---|---|---|
-| Branded entry point | Good Intelligence navigation and lazy mounting of the Financial Model view | `js/apps-good-intelligence.js` |
-| Branded model surface | HPP identity, Orb 2 canvas, model controls, field status, inspection, and display geometry | `js/good-intelligence-orb2.js` · `css/good-intelligence.css` |
-| Reviewed market context | Provider/Disc contracts, ticker roster, market-context measures, and Dollar Strength reference logic | `js/characters-disc-catalog.js` · `js/characters-beat.js` · `js/good-intelligence-market-roster.js` · `js/good-intelligence-market-context.js` · `js/good-intelligence-dxy.js` · `js/market-extension.js` |
-| Server field | Bounded provider work, validation, composition, publication, and same-origin field reads | `worker/orb2-field.mjs` · `worker/orb2-field-publish.mjs` · `worker/orb2-composition.mjs` · provider adapters under `worker/` |
-| Persistence and schedule | D1 field/history storage, supporting migrations, and scheduled publication/collection configuration | `migrations/community/0008_orb2_saved_beats.sql` · `0009_orb2_server_field.sql` · `0018_orb2_field_snapshot.sql` · `wrangler.jsonc` |
-| Contract and operator detail | Shared beat contract, data-source boundaries, and deployment operation | [`Orb 2 / Characters bridge`](../characters/good-intelligence-orb2-bridge.md) · [`Orb 2 Cron plan`](../deployment/ORB2-CRON-PLAN.md) · [`Orb 2 beat runner`](../deployment/ORB2-BEAT-RUNNER.md) |
+> **Meaning of “Financial Model” here:** this is a product name for a market-context and visualization package. It is not a discounted-cash-flow model, security valuation, financial-statement forecast, return/risk model, portfolio optimizer, trading P&L ledger, execution service, or investment recommendation.
 
-The five Disc families are **Stocks, FX, Crypto, Futures, and Indices**. Provider selection is enforced by the Worker and can depend on deployment configuration: Stocks are Tickerbot-only; Crypto uses Kraken Spot; FX, active Futures, and Indices use the Massive route unless `TWELVEDATA_API_KEY` selects Twelve Data for daily context. The FX lane also has a separately documented, bounded Alpha Vantage fallback. Missing or refused inputs remain held rather than silently substituted. The dated market-cap roster is metadata with provenance, not a live substitute for market data. See the bridge and deployment documents for the channel/interval contracts and the current deployment's provider configuration and terms.
+## Package documents
 
-## Data path
+- [Mathematical white paper](HPP-FINANCIAL-MODEL-WHITE-PAPER.md) — plain-English explanation and equations, written for AI and non-programming auditors.
+- [Reconstruction specification](HPP-FINANCIAL-MODEL-RECONSTRUCTION-SPEC.json) — machine-readable input contracts, defaults, formulas, states, and boundaries.
+- [Audit checklist](HPP-FINANCIAL-MODEL-AUDIT-CHECKLIST.md) — practical review prompts for data, math, failure behavior, and deployment.
+- [Source map](HPP-FINANCIAL-MODEL-SOURCE-MAP.md) — implementation files, functions, and focused tests.
+- [SHA-256 manifest](HPP-FINANCIAL-MODEL-SHA256SUMS.txt) — integrity hashes for the package documents.
+- [Downloadable ZIP](The-Harshal-Priyavadan-Patel-Financial-Model.zip) — document-first bundle; no webpage export or source-code dump.
 
-1. **The server selects bounded work.** Orb 2's scheduled Worker field selects work from the reviewed Disc/provider lanes and applies the configured durable budgets, queues, caches, and freshness rules.
-2. **The Worker validates and stores observations.** Provider identity, instrument, interval, and response shape are checked before an observation is accepted into the field. Where configuration or data is unavailable, the relevant result remains held/unavailable rather than being fabricated or swapped from another source.
-3. **The browser reads the field from this origin.** Orb 2 polls `GET /api/good-intelligence/v1/orb2/field` (normally every 20 seconds, more slowly when the tab is hidden). Provider credentials do not enter the page; the browser does not call a market-data provider directly.
-4. **Explicit controls can request server work.** “Beat now,” a focused refresh, or calibration can issue a bounded same-origin request for Worker-managed work. This is data collection/refresh only; it does not place or settle a trade.
-5. **Orb 2 renders context.** The browser composes the returned, attributed observations into the five-Disc constellation, selected-node details, status readouts, and display-only market-context geometry. Stored beat history is separate from the currently rendered field.
+## Surface 1 — Market Charts
 
-The `observation` beat is the live-provider observation type. `message`, `trade`, `authorization`, and `permission` are deterministic local display scenarios; their names do not denote transmitted OCM messages, real trades, authorizations, or granted permissions.
+The chart panel uses the reviewed 52-symbol Tickerbot watchlist by default, with a separate synthetic-demo option. Live requests are allowlisted and go from the browser to the same-origin Good Intelligence Worker route; provider credentials stay server-side. The chart selector exposes **1h** and **1d** bars. The displayed price, source, interval, bar count, and technical context are derived from supplied bars. A missing or refused response produces an explicit unavailable state; no OHLCV bars or prices are fabricated. Demo bars remain labeled synthetic and are not substituted for failed live bars.
 
-## Interpretation rules
+The indicator defaults and exact transformations are documented in the white paper and reconstruction specification. In brief: VFI requires complete OHLC plus volume; log-space Fibonacci Bands can remain available in price-only context; WaveTrend uses the selected price source; signals/alerts are descriptive indicator conditions, not instructions to act.
 
-- A market observation is not independently verified merely because a provider supplied it. Read its provider, timestamp, interval, confirmation, freshness, and status alongside the display.
-- Missing, stale, unaligned, malformed, or refused input stays **missing/held**. It is not a zero, a neutral reading, or a synthetic live replacement.
-- VFI, Fibonacci-band position, WaveTrend, price change, derived motion, Dollar Strength context, radial placement, and berth separation are descriptive/display inputs. They do not produce a buy/sell signal, price target, return, ranking, or probability of success.
-- Dollar Strength (DS) is a read-only reference computed from six aligned FX closes. It is not the licensed ICE DXY value, a formal Ground-0 phase, or an action gate.
-- Orb 2 pathways and particle/line effects are local visualization. No OCM message is transmitted.
+## Surface 2 — Orb 2
 
-## Explicit boundaries
+Orb 2 renders stored, provider-attributed observations in five reviewed Disc families. The Worker owns provider selection, bounded collection, validation, composition, and field publication. The browser reads the field through same-origin routes; provider secrets do not enter the page. A daily score is the composition baseline; a confirmed 15-minute score can contribute a freshness-weighted residual. This composition and the radial/coordinate mappings are display-only.
 
-This product is not:
+Provider configuration is deployment-dependent. The reviewed boundaries include Tickerbot for Stocks, Kraken Spot for Crypto, and Massive by default for FX, active Futures, and Indices; Twelve Data and the bounded FX fallback may be selected by configuration. Missing, stale, misaligned, malformed, synthetic-when-disallowed, or refused inputs remain held/unavailable under the relevant contract. Read the provider, interval, timestamp, confirmation, status, and freshness with every observation.
 
-- a valuation, forecast, recommendation, or trade-execution service;
-- financial, investment, tax, or legal advice;
-- a security rating, price target, or guarantee of performance;
-- an order-entry, brokerage, custody, wallet, settlement, or trading-execution system;
-- an authorization or permission mechanism; or
-- evidence that a market-data provider's observation is complete, current, licensed for every use, or independently correct.
+Dollar Strength (DS) is a calculated daily reference based on six confirmed, aligned Massive FX closes and the documented ICE USDX Rule 15.01 weights. It is **not** the licensed real-time ICE-distributed Dollar Strength/DXY value, a formal Ground-0 phase, an action gate, or an authority signal.
 
-The brand does not change those boundaries. Provider requests and stored observations remain subject to the existing Worker configuration, provider terms, D1 migrations, and access controls. A successful local preview does not prove production credentials, migrations, provider rights, or scheduled field availability.
+## Interpretation and explicit boundaries
 
-## How to open
+- Provider attribution does not independently verify a quote or provider calculation.
+- Market Charts does not have a substitute-feed fallback: select Synthetic demo explicitly if desired. Synthetic data is never presented as live.
+- Market Charts displays the supplied bar timing and confirmation state; do not infer data freshness from the dashboard being open. There is no separate client-side age threshold for every displayed chart bar.
+- Orb 2 freshness/composition rules are distinct from Market Charts. A missing daily baseline yields `hold`; a missing or stale 15-minute input falls back to the daily baseline rather than becoming zero.
+- Indicators, visual positions, radial distance, color, animation, DS context, and labels do not encode a target price, expected return, probability of success, buy/sell decision, recommendation, or permission to act.
+- The product is not financial, investment, tax, or legal advice; a security rating; a guarantee of performance; an order-entry, brokerage, custody, wallet, settlement, or trading system; or an authorization mechanism.
+
+The brand is attribution only. It does not certify model performance, provider accuracy, rights, regulatory status, or deployment readiness. Production secrets, provider permissions, Cloudflare Access, D1 remote migrations, Cron behavior, and runtime resource limits must be checked in the target deployment. A local test or preview is not proof of production readiness.
+
+## How to open and review
 
 1. Launch **Good Intelligence** from the HarshalOS desktop.
-2. Choose **Financial Model** in the view navigation (the product line is **Good Intelligence · Orb 2**).
-3. Read the provider, field, beat, persistence, and freshness states before interpreting a visual.
-4. Use the Disc selector, focus controls, color key, model-boundary details, and selected-node inspector to inspect how a displayed observation is represented. Use the 3D controls as presentation controls only.
-
-If a lane is unavailable, the model should say so and hold the affected field. Do not treat an empty or stale field as current market coverage.
+2. Select **Financial Model**. Market Charts and Orb 2 appear together.
+3. For charts, inspect the selected provider, ticker, interval, source label, bar count, and timestamps. Switch to Synthetic demo only when intentionally reviewing synthetic fixtures.
+4. For Orb 2, inspect the field/Disc, provider, timeframe, confirmation, freshness, and missing/held state before interpreting its geometry.
+5. Treat the inspector and 3D controls as review and presentation tools only.
 
 ## Verification
 
-Run the focused model and Worker checks:
+Focused checks cover the chart indicator math, Orb 2 rendering and Worker contract, daily/15-minute composition, Dollar Strength input gates, and desktop integration:
 
 ```sh
-node --test tests/good-intelligence-orb2-test.mjs tests/good-intelligence-orb2-worker-test.mjs tests/orb2-composition-test.mjs tests/orb2-field-scheduler-test.mjs tests/orb2-field-publish-test.mjs
+node --test \
+  tests/good-intelligence-market-context-test.mjs \
+  tests/good-intelligence-orb2-test.mjs \
+  tests/good-intelligence-dxy-test.mjs \
+  tests/orb2-composition-test.mjs \
+  tests/g0-desktop-test.mjs
 ```
 
-The wider app suite is `npm run test:app`; the full repository suite is `npm test`. These tests verify implementation contracts and fixtures, not investment performance, provider accuracy, regulatory compliance, or production deployment state.
+Run `npm run test:app` for the application suite or `npm test` for the repository suite. Tests establish coded behavior against fixtures; they do not establish investment performance, provider correctness, licensing, or production deployment state.
