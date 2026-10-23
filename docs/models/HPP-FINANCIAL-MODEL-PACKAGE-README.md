@@ -23,4 +23,8 @@ The dashboard places Market Charts and Orb 2 together but does **not** merge the
 
 This package documents software behavior; it does not validate market-data accuracy, investment performance, provider licensing, or a production deployment. The product is not a valuation, forecast, investment recommendation, order, authorization, or financial/legal/tax advice. A synthetic demo is not live data. Review source timestamps, provider labels, and held/unavailable states.
 
+## Development-source provenance
+
+The project record says the model's reference information included three original Pine Script v4 inspiration scripts manually retrieved from TradingView—one credited to Rashad and two to LazyBear—and market observations automatically retrieved through configured provider APIs. The v4 inspirations are separate from the user-supplied v6 transcriptions archived under `scripts/pine/`; the v4 code itself is not included here. Their exact TradingView identifiers, URLs, titles, access dates, and reuse permissions have not been supplied in the archive. The current source attribution is project-owner-reported, not independently verified. Automated repository tests use deterministic fixtures and do not prove provider accuracy or Pine source-runtime parity.
+
 No sensitive personal identifier is included.

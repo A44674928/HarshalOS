@@ -3,6 +3,14 @@
 **Attribution:** Harshal Priyavadan Patel
 **Purpose:** Connect the white paper's plain-English definitions to the current repository implementation. Paths are repository-relative; function names are more stable than line numbers.
 
+## Development-source provenance
+
+| Source class | Acquisition and role | Record in this repository |
+|---|---|---|
+| Historical Pine v4 inspiration | Manually retrieved from TradingView; per project-owner attribution, one script credited to Rashad and two to LazyBear. Design inspiration only; no source-runtime parity claim. | Not reproduced here. Exact titles, TradingView IDs/URLs, author handles, retrieval dates, and permissions remain unrecorded. See `scripts/pine/README.md` for the distinction from the separate v6 archive. |
+| Market observations | Automatically fetched through configured provider APIs; they feed chart/field calculations and are provider-reported rather than ground truth. | `js/apps-good-intelligence.js`, Worker provider adapters, response metadata and test fixtures; live provider selection depends on deployment configuration. |
+| Automated verification | Deterministic repository test fixtures exercise formula/contracts. | Test files listed below; tests do not fetch the original TradingView scripts or establish live-provider accuracy/source parity. |
+
 ## Product and dashboard
 
 | Responsibility | Implementation | What to inspect |

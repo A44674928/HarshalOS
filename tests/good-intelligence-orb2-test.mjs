@@ -23,6 +23,8 @@ const charactersAppSource = await readText("js/apps-characters.js");
 const indexHtml = await readText("index.html");
 const appCss = await readText("css/good-intelligence.css");
 const packageGuide = await readText("docs/models/HARSHAL-PRIYAVADAN-PATEL-FINANCIAL-MODEL.md");
+const financialModelPaper = await readText("docs/models/HPP-FINANCIAL-MODEL-WHITE-PAPER.md");
+const reconstructionSpec = JSON.parse(await readText("docs/models/HPP-FINANCIAL-MODEL-RECONSTRUCTION-SPEC.json"));
 const workerSource = await readText("worker/good-intelligence-orb2-beats.mjs");
 
 const NOW = Date.parse("2026-10-05T12:00:00.000Z");
@@ -1067,6 +1069,13 @@ test("the branded combined financial-model package is explicit, display-only, an
     assert.ok(packageGuide.includes(`## ${section}`), `the package guide includes ${section.toLowerCase()}`);
   }
   assert.match(packageGuide, /not a discounted-cash-flow model, security valuation, financial-statement forecast, return\/risk model, portfolio optimizer, trading P&L ledger, execution service, or investment recommendation/i);
+  assert.match(financialModelPaper, /three original Pine Script v4 inspiration scripts were manually retrieved from TradingView/i);
+  assert.match(financialModelPaper, /one is credited to Rashad \[1\] and two to LazyBear \[2–3\]/);
+  assert.match(financialModelPaper, /automatically through the configured provider APIs/i);
+  assert.deepEqual(reconstructionSpec.source_provenance.manual_tradingview_reference.project_attribution, { Rashad: 1, LazyBear: 2 });
+  assert.deepEqual(reconstructionSpec.source_provenance.manual_tradingview_reference.source_register.map(entry => entry.attributed_creator), ["Rashad", "LazyBear", "LazyBear"]);
+  assert.equal(reconstructionSpec.source_provenance.manual_tradingview_reference.pine_version, "v4");
+  assert.equal(reconstructionSpec.source_provenance.automatic_provider_observations.independent_ground_truth, false);
 });
 
 test("Orb 2 keeps settings and status outside the clear, full-width model stage", async t => {

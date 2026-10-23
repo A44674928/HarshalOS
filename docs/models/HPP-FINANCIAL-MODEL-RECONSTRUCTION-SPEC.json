@@ -27,6 +27,37 @@
       "missing inputs into zero or neutral values"
     ]
   },
+  "source_provenance": {
+    "manual_tradingview_reference": {
+      "retrieval_method": "manual",
+      "pine_version": "v4",
+      "script_count": 3,
+      "project_attribution": {"Rashad": 1, "LazyBear": 2},
+      "role": "historical design inspiration; not proof of source-runtime parity",
+      "included_verbatim_in_package": false,
+      "attribution_status": "project-owner-reported; not independently re-verified",
+      "source_register": [
+        {"reference": "[1]", "attributed_creator": "Rashad", "platform": "TradingView", "retrieval_method": "manual"},
+        {"reference": "[2]", "attributed_creator": "LazyBear", "platform": "TradingView", "retrieval_method": "manual"},
+        {"reference": "[3]", "attributed_creator": "LazyBear", "platform": "TradingView", "retrieval_method": "manual"}
+      ],
+      "metadata_not_recorded": ["exact titles", "TradingView script IDs", "author profile handles", "URLs", "retrieval/access dates", "reuse permissions"]
+    },
+    "automatic_provider_observations": {
+      "retrieval_method": "automatic provider APIs through configured routes",
+      "market_charts_default": "Tickerbot Live",
+      "orb2_provider_lanes": ["Tickerbot", "Kraken Spot", "Massive"],
+      "configuration_dependent_alternatives": ["Twelve Data", "Alpha Vantage FX fallback"],
+      "role": "provider-reported market observations for runtime calculations and development/review context",
+      "independent_ground_truth": false
+    },
+    "repository_verification": {
+      "automated_test_inputs": "deterministic fixtures",
+      "test_suite_fetches_live_provider_data": false,
+      "pine_source_runtime_parity": "not established"
+    },
+    "separation_note": "The Pine v4 inspiration set is distinct from the separately archived user-supplied Pine v6 transcriptions under scripts/pine/."
+  },
   "surfaces": {
     "market_charts": {
       "source_modes": [

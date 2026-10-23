@@ -53,6 +53,23 @@ The reviewed provider routing is deployment-configurable. The product documentat
 
 The combined dashboard is a **UI composition**. The Market Charts interval and Orb 2 timeframe are intentionally separate state variables. Each surface retains its own data source, source labels, request/cache path, and failure behavior. There is no hidden chart-to-field join or cross-provider substitute. A reader must not infer that both surfaces describe the same instrument, timestamp, quote currency, or provider unless each displayed record says so.
 
+### 2.4 Development inputs and provenance
+
+Project records describe two distinct acquisition channels for the information used to design and review this model:
+
+1. **Manual TradingView research.** Three original Pine Script v4 inspiration scripts were manually retrieved from TradingView. Per the project-provided attribution, one is credited to Rashad [1] and two to LazyBear [2–3]. They are historical inspirations/reference material—not proof that the current JavaScript implementation is identical to those scripts, and not a claim that the current model authors those source scripts.
+2. **Automatic provider data.** Market observations are retrieved automatically through the configured provider APIs. Market Charts defaults to Tickerbot Live; Orb 2 uses its separate Worker-managed provider lanes (Tickerbot for Stocks, Kraken Spot for Crypto, and Massive by default for FX, active Futures, and Indices, with deployment-configured alternatives/fallbacks). Provider responses feed the corresponding display calculations; they remain provider-reported observations, not independent ground truth.
+
+**Source register (project-provided attribution; not a linked bibliography):**
+
+- **[1]** Pine Script v4 inspiration, credited to **Rashad**, manually retrieved from TradingView.
+- **[2]** Pine Script v4 inspiration, credited to **LazyBear**, manually retrieved from TradingView.
+- **[3]** Pine Script v4 inspiration, credited to **LazyBear**, manually retrieved from TradingView.
+
+The three Pine v4 inspirations are **not the same materials** as the separate user-supplied Pine v6 source transcriptions archived under `scripts/pine/`. The v4 TradingView script IDs, exact titles, author handles, URLs, access dates, and license/permission records are not present in this package; attribution to “Rashad” and “LazyBear” is recorded as supplied by the project owner, not independently re-verified here. The v4 source code is not reproduced in this ZIP. Before redistribution of copied source or formal source-level citations, add the exact TradingView records and confirm applicable reuse rights.
+
+The repository's automated regression tests use deterministic fixtures. They verify implementation contracts but do not fetch TradingView scripts or establish bar-for-bar parity with a Pine runtime. Automatically retrieved provider data are distinguishable from synthetic fixtures and remain subject to provider timestamps, revisions, terms, and accuracy limitations. See the repository's `scripts/pine/README.md` for the Pine v6 archive note and the [source map](HPP-FINANCIAL-MODEL-SOURCE-MAP.md) for implementation paths.
+
 ## 3. Input contract and normalization
 
 ### 3.1 Chart packet and bars

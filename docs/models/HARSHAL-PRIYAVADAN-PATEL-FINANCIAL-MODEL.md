@@ -16,6 +16,12 @@ The combined view is a presentation and navigation change, **not a new calculati
 
 The scope is Good Intelligence **Market Charts + Orb 2**. Separate real-estate pro formas and the paper-trading P&L application are not included in this product or its ZIP.
 
+## Development-source provenance
+
+Project records describe two acquisition channels for the information used to build and review the model: **manual retrieval from TradingView** of three original Pine Script v4 inspiration scripts—one credited to Rashad and two to LazyBear—and **automatic retrieval through configured market-data provider APIs**. Market Charts defaults to Tickerbot Live; Orb 2 uses its separate Worker-managed provider lanes, including Tickerbot, Kraken Spot, and Massive, with configuration-dependent alternatives/fallbacks.
+
+The Pine v4 scripts are inspirations, not proof of source-runtime parity. They are distinct from the user-supplied Pine v6 transcriptions in `scripts/pine/` and are not reproduced in this ZIP. Exact TradingView script IDs, titles, author handles, URLs, access dates, and permissions are not included in the current source record; the author attributions above are recorded as provided by the project owner, not independently re-verified here. Repository regression tests use deterministic fixtures and do not establish live-provider accuracy or Pine v4 parity. See the [white paper](HPP-FINANCIAL-MODEL-WHITE-PAPER.md) and the repository's `scripts/pine/README.md` for the separate v6 archive note.
+
 > **Meaning of “Financial Model” here:** this is a product name for a market-context and visualization package. It is not a discounted-cash-flow model, security valuation, financial-statement forecast, return/risk model, portfolio optimizer, trading P&L ledger, execution service, or investment recommendation.
 
 ## Package documents

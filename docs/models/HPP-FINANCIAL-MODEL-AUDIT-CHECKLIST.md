@@ -85,7 +85,16 @@ For missing, malformed, or refused data:
 - [ ] Runtime CPU/time/memory and field publication are tested with realistic provider responses.
 - [ ] Production checks distinguish an unavailable/held field from a successful fresh field.
 
-## G. Automated checks and evidence
+## G. Source acquisition and citation record
+
+- [ ] The provenance statement distinguishes manually retrieved TradingView reference code from automatically retrieved provider market observations.
+- [ ] The three Pine v4 inspiration scripts are identified only as project-attributed sources: one credited to Rashad and two to LazyBear.
+- [ ] The v4 inspiration sources are not confused with the separate user-supplied Pine v6 transcriptions in `scripts/pine/`.
+- [ ] Before formal citation or source redistribution, record each TradingView script's exact title, ID, author handle, URL, retrieval date, and reuse permission.
+- [ ] Provider observations retain provider/source, instrument, timestamp, interval, synthetic status, and response provenance; API data are not called independent ground truth.
+- [ ] Repository tests are described as deterministic-fixture tests, not live-provider verification or proof of Pine runtime parity.
+
+## H. Automated checks and evidence
 
 Focused tests:
 
