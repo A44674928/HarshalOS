@@ -1,10 +1,13 @@
 # APN 30055004 Real DEM Package — Design Preview (USGS 3DEP 1m Structure)
 
-**Status:** Design development preview — structurally identical to USGS 1m tile, awaiting TNM download to replace synthetic bare-earth with surveyed bare-earth.
+**Status:** SYNTHETIC DESIGN PREVIEW ONLY — not survey-grade, not a verified USGS DEM, and not suitable for building siting, grading, drainage, septic, access, or permit use. Replace with actual USGS 3DEP data and an AZ RLS survey before placing footprints.
 
-**Why synthetic?** Sandbox egress blocks direct USGS TNM fetch (tnmaccess.nationalmap.gov). Package is built to *exact USGS spec* so you can hand PE/RLS a drop-in replacement today, then swap the GeoTIFF tomorrow with zero redraw.
+**Why synthetic?** The repository's current contours were generated from a synthetic placeholder surface. Their parcel proxy/coordinate offset and elevations have not been field-verified. The actual USGS 3DEP bare-earth raster and AZ RLS topo survey are still required. A USGS DEM is not itself a legal boundary or field survey.
 
 ## Files
+
+
+> **Current phasing decision (2026-11-03): PRIORITY 1** is the compact two-story fire-watch-style cabin / future ADU concept. **PHASE 2** is the principal main house. No building footprint is placed in these DXFs because the contours are synthetic and use a parcel proxy/offset. See [PHASED_BUILD_PRIORITY_AND_ZONING_REVIEW.md](../terrain_preliminary/PHASED_BUILD_PRIORITY_AND_ZONING_REVIEW.md) for the concept, current zoning screen, ADU sequencing gate, and required evidence.
 
 **Startup budget annotation:** Each DXF includes a visible `STARTUP BUDGET: $200,000` note on the `PROJECT-BUDGET` layer. The 1-ft and 2-ft files are alternate contour-interval exports for the same parcel, so the repeated note is the same project-level planning baseline in both files, not two independent budgets. This is a starting assumption, not an itemized or verified cost estimate.
 

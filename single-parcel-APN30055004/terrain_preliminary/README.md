@@ -2,6 +2,10 @@
 
 ## Deliverables
 
+## Current priority build decision — 2026-11-03
+
+**Priority 1:** compact two-story fire-watch-style cabin / future ADU concept. **Phase 2:** principal main house. The current contour DXFs are synthetic placeholders, not siting data; no footprints or finished-floor elevations may be placed from them. The County's current ADU-first sequencing and the intended first building's legal classification require written Planning and Zoning confirmation. See [PHASED_BUILD_PRIORITY_AND_ZONING_REVIEW.md](PHASED_BUILD_PRIORITY_AND_ZONING_REVIEW.md) for the complete design brief and compliance register.
+
 - `index.html` — self-contained interactive viewer. It renders the actual USGS 3DEP 1-meter DEM dynamically from the public ImageServer, locked to source raster **86167**, and switches among five Arizona NAIP image years (2013, 2017, 2019, 2021, 2023). The viewer needs an internet connection to the public ArcGIS services.
 - `epqs_samples.csv` — ten USGS Elevation Point Query Service samples in WGS84, with returned elevations in feet.
 - `parcel_outline.geojson` — parcel polygon returned by Arizona Water Maps for APN 30055004, kept separate from the terrain data and explicitly identified as assessor/GIS geometry, not a survey.
