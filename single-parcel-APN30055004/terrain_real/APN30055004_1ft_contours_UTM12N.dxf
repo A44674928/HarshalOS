@@ -1549,7 +1549,7 @@ LAYER
 100
 AcDbSymbolTable
  70
-3
+4
   0
 LAYER
   5
@@ -1616,6 +1616,30 @@ C-CONTO-1FT
 0
  62
 8
+  6
+Continuous
+370
+-3
+390
+13
+347
+21
+  0
+LAYER
+  5
+45
+330
+1
+100
+AcDbSymbolTableRecord
+100
+AcDbLayerTableRecord
+  2
+PROJECT-BUDGET
+ 70
+0
+ 62
+2
   6
 Continuous
 370
@@ -16954,6 +16978,30 @@ AcDbPolyline
 410948.8755
  20
 3924338.3436868098
+  0
+TEXT
+  5
+46
+330
+17
+100
+AcDbEntity
+  8
+PROJECT-BUDGET
+100
+AcDbText
+ 10
+410951.0
+ 20
+3924343.0
+ 30
+0.0
+ 40
+1.5
+  1
+STARTUP BUDGET: $200,000
+100
+AcDbText
   0
 ENDSEC
   0

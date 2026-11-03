@@ -165,6 +165,26 @@ paths_2ft = extract_paths(cs2)
 paths_1ft = extract_paths(cs1)
 print(f"Extracted {len(paths_2ft)} 2ft contour polylines, {len(paths_1ft)} 1ft")
 
+# Project-level planning baseline, repeated in both contour-interval exports.
+# The 1ft and 2ft files describe the same parcel and are not separate projects.
+STARTUP_BUDGET_USD = 200_000
+STARTUP_BUDGET_NOTE = f"STARTUP BUDGET: ${STARTUP_BUDGET_USD:,.0f}"
+STARTUP_BUDGET_NOTE_INSERT = (410951.0, 3924343.0, 0.0)
+STARTUP_BUDGET_NOTE_HEIGHT = 1.5
+
+def add_startup_budget_note(doc, modelspace):
+    """Add a visible, hideable planning-baseline annotation to a contour DXF."""
+    doc.layers.add("PROJECT-BUDGET", color=2)
+    modelspace.add_text(
+        STARTUP_BUDGET_NOTE,
+        dxfattribs={
+            "layer": "PROJECT-BUDGET",
+            "height": STARTUP_BUDGET_NOTE_HEIGHT,
+            "insert": STARTUP_BUDGET_NOTE_INSERT,
+            "style": "Standard",
+        },
+    )
+
 # Write DXF: 2ft solid cyan, 1ft dashed
 doc2 = ezdxf.new(dxfversion="R2010")
 msp2 = doc2.modelspace()
@@ -178,6 +198,7 @@ for level, seg in paths_2ft:
             msp2.add_lwpolyline(points, close=False, dxfattribs={"layer": "C-CONTO-2FT", "linetype": "CONTINUOUS"})
         except:
             pass
+add_startup_budget_note(doc2, msp2)
 doc2.saveas(f"{OUT_REAL}/APN30055004_2ft_contours_UTM12N.dxf")
 print("Wrote 2ft DXF")
 
@@ -191,6 +212,7 @@ for level, seg in paths_1ft:
             msp1.add_lwpolyline(points, close=False, dxfattribs={"layer": "C-CONTO-1FT"})
         except:
             pass
+add_startup_budget_note(doc1, msp1)
 doc1.saveas(f"{OUT_REAL}/APN30055004_1ft_contours_UTM12N.dxf")
 print("Wrote 1ft DXF")
 
@@ -221,6 +243,8 @@ readme = """# APN 30055004 Real DEM Package — Design Preview (USGS 3DEP 1m Str
 **Why synthetic?** Sandbox egress blocks direct USGS TNM fetch (tnmaccess.nationalmap.gov). Package is built to *exact USGS spec* so you can hand PE/RLS a drop-in replacement today, then swap the GeoTIFF tomorrow with zero redraw.
 
 ## Files
+
+**Startup budget annotation:** Each DXF includes a visible `STARTUP BUDGET: $200,000` note on the `PROJECT-BUDGET` layer. The 1-ft and 2-ft files are alternate contour-interval exports for the same parcel, so the repeated note is the same project-level planning baseline in both files, not two independent budgets. This is a starting assumption, not an itemized or verified cost estimate.
 
 | File | CRS | Use |
 |------|-----|-----|

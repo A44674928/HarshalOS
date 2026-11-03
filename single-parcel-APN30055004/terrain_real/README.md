@@ -6,6 +6,8 @@
 
 ## Files
 
+**Startup budget annotation:** Each DXF includes a visible `STARTUP BUDGET: $200,000` note on the `PROJECT-BUDGET` layer. The 1-ft and 2-ft files are alternate contour-interval exports for the same parcel, so the repeated note is the same project-level planning baseline in both files, not two independent budgets. This is a starting assumption, not an itemized or verified cost estimate.
+
 | File | CRS | Use |
 |------|-----|-----|
 | `APN30055004_1m_DEM_NAD83_UTM12N.tif` | EPSG:26912 NAD83 UTM 12N, 1m, NAVD88 meters | USGS native — QGIS/ArcGIS hillshade/slope/Aspect in 1 click |
