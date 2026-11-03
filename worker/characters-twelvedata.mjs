@@ -1,6 +1,9 @@
 /*
  * HarshalOS — Twelve Data daily-series adapter for Characters.
- * Private sole-use replacement for Massive when TWELVEDATA_API_KEY is set.
+ * Private sole-use replacement for Massive on the FX and index lanes when
+ * TWELVEDATA_API_KEY is set. Disc4 futures are NOT covered: they stay on the
+ * Massive active-contract integration (see worker/characters-futures-contracts.mjs
+ * and worker/characters-massive.mjs) and this adapter refuses futures outright.
  * Free tier: 800/day, 8/min, delayed 1-15min, personal/internal only.
  * Uses https://api.twelvedata.com/time_series?symbol=SYMBOL&interval=1day
  * Mirrors the Massive adapter's packet shape so orb2-field can stay agnostic.
@@ -44,19 +47,12 @@ function normalizeInstrument(value, now = Date.now()) {
   }
 
   if (assetClass === "futures" || assetClass === "commodity") {
-    const entry = catalogEntry("futures", symbol) || catalogEntry("commodities", symbol);
-    if (!entry) return null;
-    // Twelve Data futures: try productCode first (CL, GC etc), fallback to symbol (WTI, GOLD)
-    // For private use, Twelve Data may list futures as e.g. WTI/USD or just CL - try both.
-    // We use productCode if available, else symbol.
-    const productCode = entry.massive && entry.massive.productCode ? String(entry.massive.productCode).toUpperCase() : symbol;
-    // Map WTI->WTI/USD style? Twelve Data docs show commodities like WTI/USD not listed, but try productCode.
-    // For now, use productCode as tdSymbol, keep original symbol for packet.
-    const tdSymbol = productCode;
-    return Object.freeze({
-      symbol, displaySymbol: entry.displaySymbol, assetClass: "futures", dataShape: "ohlcv", quoteCurrency: entry.quoteCurrency,
-      tdSymbol, sourceLabel: "futures daily"
-    });
+    /* Disc4 futures are Massive-only: Twelve Data has no reviewed mapping or
+       verified active-contract discovery for the CME product codes (CL, GC, …),
+       so a futures instrument is refused here rather than silently substituted
+       with an unmapped symbol. Futures use worker/characters-futures-contracts.mjs
+       + /futures/v1/aggs through the Massive adapter instead. */
+    return null;
   }
 
   if (assetClass === "index") {
@@ -154,7 +150,7 @@ export async function fetchTwelveDataDailyMarketContext({
 } = {}) {
   const original = rawInstrument && typeof rawInstrument === "object" ? rawInstrument : { symbol, assetClass: "equity" };
   const instrument = normalizeInstrument(original, now);
-  if (!instrument) return failure("twelvedata-instrument-refused", "Twelve Data routing is limited to the reviewed FX, futures, and index instruments.");
+  if (!instrument) return failure("twelvedata-instrument-refused", "Twelve Data routing is limited to the reviewed FX and index instruments; Disc4 futures stay on Massive.");
   if (original.interval !== undefined && original.interval !== "1d") {
     return failure("twelvedata-interval-refused", "Twelve Data beats are restricted to 1d.");
   }

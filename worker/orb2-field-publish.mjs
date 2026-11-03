@@ -481,7 +481,6 @@ async function runStatusSlice({ db, env, interval, now }) {
       now, interval, run, control,
       queue: await orb2FieldQueueDepth(db, now).catch(() => ({ pending: 0, hot: 0, sweep: 0, total: 0 })),
       cachedFutures, cachedCryptoRanking, krakenLedger, tickerbotLedger, twelvedataLedger,
-      statusCommodityContracts: commodityContracts,
       hasTwelveKey: typeof env.TWELVEDATA_API_KEY === "string" && env.TWELVEDATA_API_KEY.trim().length > 0
     }),
     countsAll: orb2FieldCountsObject({
