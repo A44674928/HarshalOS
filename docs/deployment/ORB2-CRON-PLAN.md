@@ -199,9 +199,11 @@ Do not "fix" this by slowing the cron: a sparser schedule still exceeds 10 ms
 per tick and additionally breaks the documented one-unit-per-lane-per-minute
 rotation the field status and tests describe.
 
-If the runner is disabled or its secrets are removed, delete
-`ORB2_FIELD_TICK=off` and the Worker's own tick resumes — the beats are the
-same code either way.
+If the runner is disabled or its secrets are removed, return the Worker to
+owning the beats by setting `ORB2_FIELD_TICK` back to `on` (the checked-in
+`wrangler.jsonc` pins `"ORB2_FIELD_TICK": "on"`, and an explicit file value
+wins over a dashboard-only value on deploy) — the Worker's own tick resumes
+on the next minute, and the beats are the same code either way.
 
 ## If the page shows "the server field answered HTTP 500"
 
