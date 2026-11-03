@@ -343,7 +343,7 @@ export default {
     // Massive REST market data (display-only): validated queries only, the
     // MASSIVE_API_KEY secret stays in the Worker, pacing is best-effort in-memory.
     if (path === '/api/massive/v1' || path.startsWith('/api/massive/v1/')) return handleMassive(request, env);
-    // Twelve Data private (800/day 8/min, delayed) replaces Massive when TWELVEDATA_API_KEY is set and COMMUNITY_ENABLED=false.
+    // Twelve Data private (800/day 8/min, delayed) serves the FX/index lanes when TWELVEDATA_API_KEY is set and COMMUNITY_ENABLED=false; Disc4 futures remain Massive-only.
     if (path === '/api/twelvedata/v1' || path.startsWith('/api/twelvedata/v1/')) return handleTwelveData(request, env);
     if (path === '/api/good-intelligence/v1' || path.startsWith('/api/good-intelligence/v1/')) return handleGoodIntelligenceDemo(request);
     if (path.startsWith('/api/')) return handleApi(request, env);

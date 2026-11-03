@@ -537,8 +537,14 @@ export function sanitizeOrb2FieldObservation(value, now = Date.now()) {
   if (!PROVIDER_IDS.has(provider)) return { ok: false, message: "Only the reviewed Massive/Twelve Data, Tickerbot, and Kraken providers may write the server field." };
   const interval = text(value.interval, 8);
   if (!TICKERBOT_INTERVALS.includes(interval)) return { ok: false, message: "The field stores 15m, 1h, and 1d observations only." };
-  if ((provider === "massive" || provider === "twelvedata") && (interval !== "1d" || !["fx", "commodities", "indices"].includes(discId))) {
-    return { ok: false, message: "Massive/Twelve Data writes daily FX, commodity-futures, and index observations only." };
+  if (provider === "massive" && (interval !== "1d" || !["fx", "commodities", "indices"].includes(discId))) {
+    return { ok: false, message: "Massive writes daily FX, commodity-futures, and index observations only." };
+  }
+  /* Disc4 futures are Massive-only: they require a Massive-verified active contract,
+     which Twelve Data cannot supply, so a Twelve Data commodity row is refused rather
+     than stored as provider data. */
+  if (provider === "twelvedata" && (interval !== "1d" || !["fx", "indices"].includes(discId))) {
+    return { ok: false, message: "Twelve Data writes daily FX and index observations only; Disc4 futures stay on Massive." };
   }
   if (provider === "tickerbot" && (discId !== "stocks" || !TICKERBOT_INTERVALS.includes(interval))) {
     return { ok: false, message: "Tickerbot writes Disc1 stock observations only." };
@@ -1646,7 +1652,11 @@ async function beatTwelveData({ env, instrument, now, fetcher, keys, dependencie
 
 async function beatMassive({ env, instrument, now, fetcher, keys, dependencies }) {
   // Private sole-use: prefer Twelve Data (800/day 8/min free) when TWELVEDATA_API_KEY is set, else Massive.
-  if (keys.twelvedata) {
+  // Rollback boundary: Disc4 futures are exempt. Twelve Data has no verified active-contract
+  // discovery for the reviewed CME products, so futures always use the earlier Massive
+  // integration (/futures/v1/contracts + /futures/v1/aggs) and require MASSIVE_API_KEY.
+  const futuresStayOnMassive = Boolean(instrument) && (instrument.discId === "commodities" || instrument.assetClass === "futures");
+  if (keys.twelvedata && !futuresStayOnMassive) {
     const td = await beatTwelveData({ env, instrument, now, fetcher, keys, dependencies });
     // If Twelve Data explicitly refused (not-configured) fall through to Massive, else return its result.
     if (td.code !== "twelvedata-not-configured") return td;
@@ -1840,10 +1850,13 @@ function scheduledWorkItems({ roster, optionsEnabled, keys, laneId = null }) {
       add(`kraken:1d:${instrument.symbol}`, "kraken-daily", instrument);
     }
   }
+  /* Disc4 futures are Massive-only: they need the verified active-contract table
+     (migration 0011), which Twelve Data cannot replace, so they schedule only when
+     MASSIVE_API_KEY is set. FX and indices may use either daily venue. */
+  if (keys.massive && ownsLane("massive-futures")) {
+    for (const instrument of roster.commodities) add(`massive:futures:${instrument.symbol}`, "massive-futures", instrument);
+  }
   if (hasDailyVenue) {
-    if (ownsLane("massive-futures")) {
-      for (const instrument of roster.commodities) add(`massive:futures:${instrument.symbol}`, "massive-futures", instrument);
-    }
     if (ownsLane("massive-indices")) {
       for (const instrument of roster.indices) add(`massive:index:${instrument.symbol}`, "massive-index", instrument);
     }
@@ -2105,7 +2118,10 @@ async function processScheduledWorkItem({ db, env, item, now, fetcher, keys, sum
     }
     return;
   }
-  const provider = item.kind === "kraken-daily" ? "kraken" : item.kind === "tickerbot-daily" ? "tickerbot" : (keys.twelvedata ? null : "massive");
+  /* Futures items are always Massive: their stored rows and rotation reads must stay
+     on the "massive" provider even when Twelve Data serves the FX/index lanes. */
+  const futuresItem = item.kind === "massive-futures";
+  const provider = item.kind === "kraken-daily" ? "kraken" : item.kind === "tickerbot-daily" ? "tickerbot" : (futuresItem || !keys.twelvedata ? "massive" : null);
   const due = await dueRotation(db, [item.instrument], 1, now, provider);
   if (!due.length) return;
   const instrument = due[0].instrument;
@@ -2124,7 +2140,7 @@ async function processScheduledWorkItem({ db, env, item, now, fetcher, keys, sum
   const outcome = item.kind === "massive-fx"
     ? await beatFx({ env, db, instrument, now, fetcher, keys })
     : await beatMassive({ env, db, instrument, now, fetcher, keys });
-  const venueIsTwelve = Boolean(keys.twelvedata);
+  const venueIsTwelve = Boolean(keys.twelvedata) && !futuresItem;
   if (item.kind === "massive-fx") {
     const providers = outcome.providers || {};
     // fx-provider reports the first attempt under `massive` even when it was Twelve Data (dispatched via the massive holder).
@@ -2229,6 +2245,10 @@ async function runProviderLane({ lane, db, env, now, fetcher, keys, summary, opt
     if (spent) return report;
     if (lane.provider === "tickerbot" && !keys.tickerbot) return report;
     if (lane.provider === "massive" && !keys.massive && !keys.twelvedata) return report;
+    if (lane.id === "massive-futures" && !keys.massive) {
+      recorder.notes.push("Disc4 futures are held: they use the Massive active-contract integration and require MASSIVE_API_KEY; Twelve Data does not serve the reviewed futures products.");
+      return report;
+    }
 
     let cryptoRanking = null;
     let commodityContracts = null;
@@ -2269,39 +2289,24 @@ async function runProviderLane({ lane, db, env, now, fetcher, keys, summary, opt
     }
 
     if (lane.id === "massive-futures") {
-      if (keys.twelvedata) {
-        // Twelve Data private: bypass Massive's active-futures contract table and synthesize 1:1 contracts from catalog productCodes.
-        // No provider call is spent here; the daily bar uses the product symbol directly (e.g. CL, GC, WTI via productCode).
-        const catalog = globalThis.CharactersDiscCatalog;
-        const list = catalog && Array.isArray(catalog.futures || catalog.commodities) ? (catalog.futures || catalog.commodities) : [];
-        const today = new Date(now).toISOString().slice(0, 10);
-        commodityContracts = {};
-        for (const entry of list) {
-          const pc = String(entry && entry.massive && entry.massive.productCode || "").toUpperCase();
-          if (!/^[A-Z0-9]{1,8}$/.test(pc)) continue;
-          commodityContracts[pc] = {
-            productCode: pc,
-            ticker: pc,
-            provider: "TwelveData",
-            asOfDate: today,
-            lastTradeDate: today
-          };
-        }
+      /* Disc4 futures always use the earlier Massive integration: the verified
+         active-contract discovery below plus /futures/v1/aggs bars. The Twelve Data
+         bypass that synthesized unverifiable 1:1 contracts was rolled back — those
+         synthesized rows never matched the roster's Massive/dated-ticker filter,
+         so the Futures orb silently had no instruments at all. */
+      const futuresState = await resolveOrb2CommodityContracts({ env, db, now, fetcher: laneFetcher, keys, summary: recorder });
+      if (recorder.massiveCalls > 0) {
+        const discoveryUnit = markSchedulerWorkUnit(summary, "massive:futures-contract-discovery", lane.id);
+        report.ran = true;
+        report.workUnit = discoveryUnit;
+        report.workUnits.push(discoveryUnit);
+        commodityContracts = futuresState && futuresState.ok ? futuresState.contracts : null;
+        /* A successful discovery can feed bars in this same selected lane.
+           Its request consumes one of the futures lane's five provider-call
+           slots; a failed discovery has no verified roster to process. */
+        if (futuresState?.discoverySucceeded !== true) return report;
       } else {
-        const futuresState = await resolveOrb2CommodityContracts({ env, db, now, fetcher: laneFetcher, keys, summary: recorder });
-        if (recorder.massiveCalls > 0) {
-          const discoveryUnit = markSchedulerWorkUnit(summary, "massive:futures-contract-discovery", lane.id);
-          report.ran = true;
-          report.workUnit = discoveryUnit;
-          report.workUnits.push(discoveryUnit);
-          commodityContracts = futuresState && futuresState.ok ? futuresState.contracts : null;
-          /* A successful discovery can feed bars in this same selected lane.
-             Its request consumes one of the futures lane's five provider-call
-             slots; a failed discovery has no verified roster to process. */
-          if (futuresState?.discoverySucceeded !== true) return report;
-        } else {
-          commodityContracts = futuresState && futuresState.ok ? futuresState.contracts : null;
-        }
+        commodityContracts = futuresState && futuresState.ok ? futuresState.contracts : null;
       }
     }
 
@@ -2442,8 +2447,11 @@ export async function runOrb2FieldTick(env = {}, context = null, dependencies = 
     }
     const keys = providerKeys(env);
     if (!keys.tickerbot) summary.notes.push("Stocks are held: add TICKERBOT_API_KEY. Massive is not used for Disc1.");
-    if (!keys.massive && !keys.twelvedata) summary.notes.push("Massive/Twelve Data FX/futures/index/Options lanes are held: add MASSIVE_API_KEY or TWELVEDATA_API_KEY. Stocks remain Tickerbot-only; Kraken remains the crypto venue.");
-    else if (keys.twelvedata) summary.notes.push("Twelve Data private (800/day 8/min delayed, personal/internal) is the daily FX/futures/index venue; Massive is dormant when TWELVEDATA_API_KEY is set.");
+    if (!keys.massive && !keys.twelvedata) summary.notes.push("Massive/Twelve Data FX/index/Options lanes are held: add MASSIVE_API_KEY or TWELVEDATA_API_KEY. Disc4 futures always require MASSIVE_API_KEY. Stocks remain Tickerbot-only; Kraken remains the crypto venue.");
+    else {
+      if (keys.twelvedata) summary.notes.push("Twelve Data private (800/day 8/min delayed, personal/internal) is the daily FX/index venue when TWELVEDATA_API_KEY is set; Disc4 futures stay on Massive.");
+      if (!keys.massive) summary.notes.push("Disc4 futures are held: futures use the Massive active-contract integration (/futures/v1/contracts) and require MASSIVE_API_KEY; Twelve Data does not replace them.");
+    }
     /* READ LANE: the control row and the Options table probe are independent
        single-row reads, so they are issued together rather than back to back. */
     const [control, optionsEnabled, dispatchRankingResult] = await readIndependently([
@@ -2484,7 +2492,8 @@ export async function runOrb2FieldTick(env = {}, context = null, dependencies = 
       stockCount: keys.tickerbot ? TICKERBOT_WATCHLIST.length : 0,
       cryptoCount: dispatchCryptoCount,
       fxCount: keys.massive || keys.twelvedata ? SCHEDULER_FX_ROSTER_SIZE : 0,
-      futuresCount: keys.massive || keys.twelvedata ? SCHEDULER_FUTURES_ROSTER_SIZE : 0,
+      /* Futures weight counts only when Massive is configured: Disc4 futures are Massive-only. */
+      futuresCount: keys.massive ? SCHEDULER_FUTURES_ROSTER_SIZE : 0,
       indexCount: keys.massive || keys.twelvedata ? SCHEDULER_INDEX_ROSTER_SIZE : 0,
       optionsCount: optionsEnabled && keys.massive
         ? TICKERBOT_WATCHLIST.length * (MASSIVE_OPTIONS_SELECTION_SIZE + 1) : 0
@@ -2842,8 +2851,11 @@ export function orb2FieldDiscsDocument({
     if (bucket) bucket.push(instrument);
   }
   const activeCommoditySymbols = new Set(roster.commodities.map(instrument => instrument.symbol));
-  const pendingVenue = typeof env.TWELVEDATA_API_KEY === "string" && env.TWELVEDATA_API_KEY.trim() ? "twelvedata" : "massive";
+  const hasTwelveVenue = typeof env.TWELVEDATA_API_KEY === "string" && env.TWELVEDATA_API_KEY.trim().length > 0;
   return ORB2_FIELD_DISCS.map((discId, index) => {
+    /* Disc4 futures are Massive-only, so their pending venue is always "massive"
+       even when Twelve Data serves the FX/index lanes. */
+    const pendingVenue = discId === "commodities" ? "massive" : (hasTwelveVenue ? "twelvedata" : "massive");
     const instruments = instrumentsByDisc.get(discId) || [];
     const discDef = catalog && typeof catalog.disc === "function" ? catalog.disc(discId) : null;
     const reviewedRoster = discId === "commodities"
@@ -3114,25 +3126,14 @@ export function orb2FieldBeatTypes({ meta = orb2FieldBeatMeta(), counts = {}, re
   });
 }
 
-/** Reviewed commodities' active-contract map for the status view: the cached
- * Massive table when it answered, otherwise the Twelve Data bypass synthesis. */
+/** Reviewed commodities' active-contract map for the status view: always the
+ * Massive-verified cache (migration 0011). Disc4 futures are Massive-only — the
+ * earlier Twelve Data bypass synthesized unverifiable 1:1 contracts that the
+ * roster's Massive/dated-ticker filter rejects, leaving the Futures orb empty;
+ * it is rolled back, so no synthesis happens here even when TWELVEDATA_API_KEY
+ * is set. (`env`/`now` stay in the signature for existing callers.) */
 export function orb2FieldStatusCommodityContracts({ env = {}, now = Date.now(), cachedFutures = null }) {
-  if (!(typeof env.TWELVEDATA_API_KEY === "string" && env.TWELVEDATA_API_KEY.trim())) {
-    return cachedFutures && cachedFutures.ok ? cachedFutures.contracts : null;
-  }
-  if (cachedFutures && cachedFutures.ok && cachedFutures.contracts && Object.keys(cachedFutures.contracts).length) {
-    return cachedFutures.contracts;
-  }
-  const cat = globalThis.CharactersDiscCatalog;
-  const list = cat && Array.isArray(cat.futures || cat.commodities) ? (cat.futures || cat.commodities) : [];
-  const today = new Date(now).toISOString().slice(0, 10);
-  const synthesized = {};
-  for (const entry of list) {
-    const pc = String(entry && entry.massive && entry.massive.productCode || "").toUpperCase();
-    if (!/^[A-Z0-9]{1,8}$/.test(pc)) continue;
-    synthesized[pc] = { productCode: pc, ticker: pc, provider: "TwelveData", asOfDate: today, lastTradeDate: today };
-  }
-  return synthesized;
+  return cachedFutures && cachedFutures.ok ? cachedFutures.contracts : null;
 }
 
 /**
@@ -3143,7 +3144,7 @@ export function orb2FieldStatusCommodityContracts({ env = {}, now = Date.now(), 
  */
 export function orb2FieldStatusHead({
   now, interval, run, control, queue, cachedFutures = null, cachedCryptoRanking = null,
-  krakenLedger = null, tickerbotLedger = null, twelvedataLedger = null, statusCommodityContracts = null,
+  krakenLedger = null, tickerbotLedger = null, twelvedataLedger = null,
   hasTwelveKey = false, catalog = globalThis.CharactersDiscCatalog
 }) {
   /* Credits spent today, from the durable D1 row (migration 0019). */
@@ -3173,7 +3174,7 @@ export function orb2FieldStatusHead({
       exhausted: false,
       ledger: "provider-rate-class",
       note: hasTwelveKey
-        ? "Massive Basic (dormant): TWELVEDATA_API_KEY is set, so FX/futures/indices use Twelve Data (800/day 8/min delayed, personal/internal free). Remove the Twelve Data key to re-enable Massive."
+        ? "Massive Basic: five requests per minute per asset class. TWELVEDATA_API_KEY additionally serves the FX/index lanes on Twelve Data; Disc4 futures always stay on Massive and require MASSIVE_API_KEY."
         : "Massive Basic: five requests per minute per asset class; the former 300/day application guard is no longer a provider gate."
     },
     twelvedata: {
@@ -3185,8 +3186,8 @@ export function orb2FieldStatusHead({
       exhausted: hasTwelveKey ? twelvedataCallsToday >= TWELVEDATA_DAILY_CREDIT_LIMIT : null,
       ledger: hasTwelveKey ? "d1-daily-credit-ledger" : "not-configured",
       note: hasTwelveKey
-        ? "Twelve Data free (private internal use): 800/day, 8/min global, delayed 1-15min, no commercial display. Configure TWELVEDATA_API_KEY; keep COMMUNITY_ENABLED=false for personal/internal qualification."
-        : "Add TWELVEDATA_API_KEY to use Twelve Data free (private sole-use). Massive remains the fallback."
+        ? "Twelve Data free (private internal use): 800/day, 8/min global, delayed 1-15min, no commercial display. Serves the daily FX/index lanes only; Disc4 futures remain Massive-only. Configure TWELVEDATA_API_KEY; keep COMMUNITY_ENABLED=false for personal/internal qualification."
+        : "Add TWELVEDATA_API_KEY to use Twelve Data free (private sole-use) for the daily FX/index lanes. Massive remains the futures venue."
     },
     kraken: {
       callsToday: Number(run && run.kraken_calls) || 0,
@@ -3203,18 +3204,16 @@ export function orb2FieldStatusHead({
       note: krakenLedger && krakenLedger.ok ? krakenLedger.ledger.note : krakenLedger && krakenLedger.message
     },
     futuresContracts: {
-      cache: hasTwelveKey ? "twelvedata-bypass" : (cachedFutures && cachedFutures.ok ? "ready" : "unavailable"),
+      /* Disc4 futures are Massive-only (rolled back from the Twelve Data bypass):
+         only the verified active-contract cache counts, never a synthesized map. */
+      cache: cachedFutures && cachedFutures.ok ? "ready" : "unavailable",
       asOfDate: new Date(now).toISOString().slice(0, 10),
       reviewedProducts: Array.isArray(catalog && catalog.commodities) ? catalog.commodities.length : 0,
-      activeContracts: hasTwelveKey
-        ? (statusCommodityContracts ? Object.keys(statusCommodityContracts).length : 0)
-        : (cachedFutures && cachedFutures.ok ? Object.keys(cachedFutures.contracts).length : 0),
+      activeContracts: cachedFutures && cachedFutures.ok ? Object.keys(cachedFutures.contracts).length : 0,
       staleFallback: false,
-      note: hasTwelveKey
-        ? "Twelve Data private: Disc4 uses Twelve Data symbols directly (productCode → symbol); Massive active-contract table is bypassed."
-        : (cachedFutures && cachedFutures.ok
-          ? "Only Massive-verified active single contracts for the current UTC date enter Disc4."
-          : "Apply D1 migration 0011_massive_futures_contract_cache.sql; Disc4 contracts remain held.")
+      note: cachedFutures && cachedFutures.ok
+        ? "Only Massive-verified active single contracts for the current UTC date enter Disc4; Twelve Data does not replace them."
+        : "Apply D1 migration 0011_massive_futures_contract_cache.sql and set MASSIVE_API_KEY; Disc4 contracts remain held."
     },
     tickerbot: {
       callsToday: Number(run && run.tickerbot_calls) || 0,
@@ -3490,7 +3489,7 @@ export async function readOrb2FieldSnapshot(env = {}, options = {}) {
     const status = {
       ...orb2FieldStatusHead({
         now, interval, run, control, queue, cachedFutures, cachedCryptoRanking,
-        krakenLedger, tickerbotLedger, twelvedataLedger, statusCommodityContracts, hasTwelveKey
+        krakenLedger, tickerbotLedger, twelvedataLedger, hasTwelveKey
       }),
       counts: orb2FieldCountsObject({
         stored: counted.stored,

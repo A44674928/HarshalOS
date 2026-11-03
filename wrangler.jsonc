@@ -78,11 +78,13 @@
   // personal/internal only (Basic/Grow/Pro internal, no third-party display;
   // Business Venture+ for public commercial display). With COMMUNITY_ENABLED
   // false and an Access app on main.empty.domains/* the site qualifies as
-  // sole private use, so FX/futures/indices daily bars can run on Twelve Data
+  // sole private use, so FX/index daily bars can run on Twelve Data
   // via TWELVEDATA_API_KEY (set as a Worker secret, never in this file).
-  // When that secret is set the field's FX/futures/indices lanes use Twelve
-  // Data and Massive is dormant; remove it to re-enable Massive (5/min per
-  // asset class). Massive's XXX is deployments, not content.
+  // When that secret is set the field's FX/index lanes use Twelve Data;
+  // the Disc4 futures lane always stays on Massive (MASSIVE_API_KEY, verified
+  // active contracts) because Twelve Data does not replace it. Remove the
+  // Twelve Data secret to put FX/indices back on Massive (5/min per asset
+  // class). Massive's XXX is deployments, not content.
   "vars": {
     "MONGODB_DATABASE": "harshalos",
     // Sole private use: community publication disabled so the site renders
