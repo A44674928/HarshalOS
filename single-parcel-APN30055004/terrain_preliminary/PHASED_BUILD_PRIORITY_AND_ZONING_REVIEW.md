@@ -236,3 +236,51 @@ Do not occupy Phase 1 until the residential certificate of occupancy is issued. 
 - County online application guidance recommends a geotechnical report for new structures and notes that one may otherwise be required during inspection.
 - The County's current code page lists the 2024 IRC and associated adopted codes effective June 2, 2026. Confirm local amendments and exact code path at application.
 
+
+
+---
+
+## 9. Program clarification — AR-5 and 10-bedroom principal residence (2026-11-03)
+
+**Owner clarification:** The parcel is understood by the owner to be AR-5, and the intended principal residence is a single-family, 10-bedroom home. This supersedes the earlier working assumption in Section 8 that Phase 1 would necessarily be the initial primary dwelling. The official zoning map, legal lot area, and parcel-specific use status still require County confirmation.
+
+### Corrected development program
+
+- **Phase 1:** two-story, habitable fire-watch-style cabin, designed for lawful residential occupancy from day one. The intended long-term role is a detached ADU to the Phase 2 principal residence. It is not to be a non-habitable lookout or storage structure.
+- **Phase 2:** the principal single-family residence, planned for 10 bedrooms. The 1,200–1,600 sq ft concept range previously mentioned is withdrawn as a planning assumption; a 10-bedroom program requires a room schedule and realistic area/massing study.
+- **Critical sequence question:** obtain written County approval for the intended phasing—whether Phase 1 can be permitted and occupied as a detached ADU before the Phase 2 principal dwelling exists, whether both can be approved in a coordinated phased application with occupancy sequencing, or whether another lawful interim classification is required. Do not occupy Phase 1 as an ADU unless the County authorizes that use and issues the required residential approvals/CO.
+- **Do not automatically reclassify Phase 1 as a second primary dwelling.** The owner’s stated intended principal residence is the 10-bedroom Phase 2 home. Any interim status for Phase 1 must be explicitly approved and must not be based on an assumption that two independent primary dwellings are permitted.
+
+### ADU sizing implications
+
+The current County ordinance allows up to 600 sq ft of ADU livable area regardless of principal-dwelling size, with a further limit of 75% of the principal dwelling's livable area and a maximum of 1,000 sq ft for a detached ADU. The intended Phase 1 cabin should therefore remain at or below 600 sq ft of County-counted livable area unless the County confirms otherwise. Confirm how the County counts stairs, lofts, balconies, and other spaces. Because the 10-bedroom primary home is not yet designed, do not assume its area satisfies the 75% ratio until the approved plans establish the actual livable area.
+
+Arizona's current ADU statute also establishes minimum size protections and a state-law definition of ADU; have County Planning and Zoning reconcile Section 3.4 with A.R.S. §11-810.01 for this specific phasing and parcel. Do not rely on a summary of either source in place of a written determination.
+
+### 10-bedroom wastewater and site-planning hold
+
+A 10-bedroom principal residence materially changes the wastewater, water, access, parking, and emergency-response design. The County Environmental Quality system-design worksheet currently published online is marked revised January 2011. Its conventional system design-flow chart lists bedroom rows through 8 bedrooms and a separate greater-than-56-fixture row (3,000-gallon minimum tank / 1,350 gpd); it does not clearly provide a dedicated 9- or 10-bedroom row. Its room-equivalency definition can also classify certain dens, offices, and other rooms as bedrooms based on physical characteristics.
+
+**Do not use the old worksheet to declare a 10-bedroom design flow or tank size.** Before schematic design is frozen, submit the proposed 10-bedroom room schedule and preliminary plumbing fixture schedule to Coconino County Environmental Quality and request a written determination of:
+1. The bedroom-equivalent count for all proposed rooms (including offices, dens, flex rooms, and guest rooms).
+2. The required design flow and tank/system sizing methodology for a 10-bedroom single-family dwelling under the currently applicable Arizona rules and County delegation.
+3. Whether the proposed system remains within County delegated review capacity or requires ADEQ/state review or a different permit path.
+4. The required primary disposal field and full-size reserve area, soil/site evaluation, setbacks, and whether a phased system may lawfully serve Phase 1 first and later the full Phase 2 dwelling.
+5. Whether Phase 1 and Phase 2 require separate wastewater systems, shared system approval, or a permitted expansion, and how the ADU's flow is counted.
+
+The County worksheet requires a floor plan with plumbing fixture units, system design-flow form, design calculations, site investigation/soil testing, plot plans, and a reserve disposal area equal in size to the disposal field for standard systems. Obtain current requirements directly from Environmental Quality before relying on this older form.
+
+### Revised site planning priorities
+
+The combined master site plan must reserve space for the full 10-bedroom principal residence, the habitable Phase 1 cabin/ADU, the required wastewater disposal and reserve areas, well and sanitary separation, fire access and turnaround, parking, utility service, drainage, snow storage, solar access, and construction staging. Size infrastructure for the ultimate approved buildout—not only the first cabin—where the County and utility providers permit/require it.
+
+The 10-bedroom designation describes a single-family dwelling only if the actual use remains one household's residential use. If the intended operation is room-by-room rental, employee dormitory, boarding/rooming, group accommodation, assisted living, or another managed occupancy, obtain a separate zoning/use determination before designing or advertising the building as a conventional single-family home.
+
+### Official references to confirm during pre-application
+
+- Coconino County Zoning Ordinance effective January 15, 2026: §§2.2, 2.7, 3.4.
+- Coconino County Environmental Quality conventional OWTF construction authorization and system-sizing worksheet (published worksheet marked revised 01/2011).
+- A.R.S. §11-810.01, accessory dwelling units.
+- County Environmental Quality current delegated authority and current wastewater application requirements.
+
+**Revised bottom line:** Phase 1 remains a habitable first-stage cabin. Phase 2 is the intended 10-bedroom single-family principal residence. The cabin's ADU classification and pre-principal-residence occupancy sequence, plus the 10-bedroom wastewater design basis, are the two critical written County determinations before final design.
