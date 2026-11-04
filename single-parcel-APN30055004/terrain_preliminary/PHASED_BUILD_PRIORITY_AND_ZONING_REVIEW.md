@@ -172,3 +172,67 @@ Do not allocate the $200,000 among line items until a contractor/quantity survey
 - [Permit Brochures, Templates, and Resources](https://www.coconino.az.gov/2218/Permit-Brochures-Templates-and-Resources).
 
 **Bottom line:** Priority 1 is the two-story fire-watch-style compact cabin concept; Phase 2 is the principal main house. The architectural concepts can proceed, but the present contour DXFs cannot establish where either building fits, and the ADU-first permit sequence must be confirmed by Coconino County before this is treated as a buildable phasing plan.
+
+
+---
+
+## 8. Owner decision adopted — Approach A (2026-11-03)
+
+**Status change:** The owner selected Approach A: Phase 1 is to be a habitable cabin from day one. This section supersedes earlier wording that described Phase 1 as a "future ADU" or proposed a non-habitable accessory structure as the first permit.
+
+### Phase 1 — primary dwelling from first occupancy
+
+- **Use classification:** submit Phase 1 as the initial primary single-family dwelling, subject to written confirmation of parcel-specific zoning and site-plan requirements. It is not an ADU at initial permitting.
+- **Massing:** two-story, compact fire-watch-inspired cabin; conventional residential construction on a permanent, engineered foundation. The fire-watch character is architectural styling, not a request for a tower or non-residential lookout use.
+- **Test-fit:** retain approximately 16 ft × 20 ft footprint as a starting geometry only. Two levels at roughly 320 sq ft gross per floor yield about 640 sq ft gross before wall, stair, and circulation deductions. This is a test-fit, not an approved floor plan.
+- **Ground level:** entry/mudroom, kitchen, living/dining area, full bathroom, mechanical/storage, and stair.
+- **Upper level:** sleeping room and flexible desk/reading area. Provide code-compliant stair geometry, guards, headroom, smoke/CO alarms, and emergency escape/rescue openings where required. Do not label an open loft as a bedroom unless it meets the applicable code.
+- **Height:** 28–30 ft remains a preliminary target only. Verify County height measurement, grade plane, roof geometry, projections, and district maximum before fixing elevations.
+- **Envelope:** steep engineered roof; continuous water-control layer; drained rainscreen; robust flashing; protected penetrations; snow/ice detailing; durable foundation-to-wall transitions. Waterproofing remains a primary system.
+- **Structure:** engineer for site-specific snow load and drift, wind, seismic, frost, and geotechnical conditions. Do not assume a generic local snow load or foundation type.
+- **Systems:** size water, wastewater, electrical service, heating, fire/life safety, and access for the approved Phase 1 dwelling. Make solar and rainwater collection future-ready, but do not rely on unapproved systems for required potable water or life safety.
+- **Occupancy gate:** no residential occupancy until required inspections are complete and the County issues the residential certificate of occupancy.
+
+The 600-sq-ft ADU allowance and 75%-of-principal-dwelling rule do **not** cap Phase 1 while it is the primary dwelling. They become relevant only if Phase 1 is later approved and reclassified as an ADU.
+
+### Phase 2 — do not presume a second primary dwelling
+
+The prior 1,200–1,600-sq-ft Phase 2 concept is a massing study only. It must not be carried forward as an assumed second independent primary dwelling. Resolve one of these legal paths with County Planning and Zoning before Phase 2 design development:
+
+A. **Addition to Phase 1:** enlarge or extend the existing primary dwelling under the applicable zoning, site-plan, and building approvals. This is the simplest one-home phased-build concept to investigate.
+
+B. **Replacement principal dwelling + Phase 1 conversion:** County confirms in writing that a new Phase 2 dwelling may become the principal dwelling and Phase 1 may then be reclassified/permitted as a detached ADU. The ADU area, 75%-of-principal-dwelling ratio, detached-unit maximum, unit count, separation, setbacks, kitchen, utility, and permit rules would then apply. The current Phase 1 gross test-fit of approximately 640 sq ft may or may not fit the eventual ADU livable-area calculation.
+
+C. **Other expressly approved configuration:** proceed only if Planning and Zoning identifies a lawful use and permit pathway in writing. Do not assume two detached primary residences are permitted on this parcel.
+
+### Written County pre-application questions
+
+Submit the Approach A use narrative, APN, owner-supplied AR-5 designation, conceptual two-story elevations, and intended full-time residential use. Ask Planning and Zoning to confirm:
+
+1. The parcel's official zoning district, legal lot area, and whether a site-built single-family dwelling is a permitted primary use on this specific parcel.
+2. Required zoning/site-plan approvals and whether overlays, recorded restrictions, lot-of-record status, or access conditions affect the primary-dwelling pathway.
+3. Whether Phase 2 can be an addition; if not, whether a replacement principal dwelling can be approved and Phase 1 later converted/reclassified as a detached ADU, including sequencing and recording requirements.
+4. How the two-story fire-watch-inspired massing is measured for height and whether any additional review is triggered beyond a conventional two-story dwelling.
+5. If future ADU conversion is viable, how livable area is measured (including stairs, lofts, balconies, and excluded spaces), and how the 600-sq-ft allowance, 75% cap, detached-unit maximum, kitchen rule, separation, and setbacks apply.
+
+Do not occupy Phase 1 until the residential certificate of occupancy is issued. Do not use the "fire watch" label to avoid dwelling, building, fire, wastewater, or access review. The County's written determination controls the Phase 2 strategy.
+
+### Revised permit sequence
+
+1. **Planning pre-application:** obtain written confirmation of the Phase 1 primary-dwelling use and the lawful Phase 2 pathway.
+2. **Title and site control:** obtain title commitment, recorded plat, legal access/easements, road maintenance rights, parcel creation date, and boundary survey.
+3. **Actual topography and constraints:** replace synthetic contours with Arizona RLS survey and verified terrain; map setbacks, easements, access, drainage/washes/floodplain, wells, wastewater and reserve area, utilities, trees, snow storage, and construction staging.
+4. **Environmental and engineering approvals:** secure wastewater/site evaluation and system approval; verify legal water source; obtain geotechnical report and site-specific County design criteria; coordinate Engineering, Environmental Quality, and serving Fire District.
+5. **Phase 1 construction documents:** prepare site plan, foundation plan, floor plans, roof/framing plan, elevations, building sections, electrical, plumbing/mechanical, energy compliance, structural calculations, drainage/grading documents where triggered, and product specifications.
+6. **Permit submission:** use the County online portal with complete, unlocked, properly rotated PDFs and required calculations/specifications. Confirm the current checklist and code edition at application.
+7. **Construction and inspections:** build only to approved documents; obtain required foundation, framing, rough MEP, insulation/energy, life-safety, grading/drainage, and final inspections.
+8. **Certificate of occupancy:** complete approved wastewater and water arrangements and all permit conditions; obtain the residential CO before moving in.
+9. **Phase 2 re-entry:** obtain the written land-use determination and update the master site plan before designing or applying for Phase 2.
+
+### Current County application notes
+
+- County Building Division's published FAQ identifies foundation, roof-framing, floor, electrical, cross-section, elevation, and site plans as residential plan-set elements. Confirm the current checklist, scale, and digital submission requirements with Building Division.
+- County guidance says a septic permit is generally required before building permit issuance; the system must be completed and approved before certificate of occupancy, subject to any written County-approved condition.
+- County online application guidance recommends a geotechnical report for new structures and notes that one may otherwise be required during inspection.
+- The County's current code page lists the 2024 IRC and associated adopted codes effective June 2, 2026. Confirm local amendments and exact code path at application.
+
