@@ -6,8 +6,8 @@
 
 ## Executive decision
 
-1. **Priority 1 — compact two-story fire-watch-style cabin / future ADU concept.** Treat this as the first vertical-build concept. The intended architecture is a compact, vertically proportioned forest-watch cabin, not a freestanding observation tower or elevated platform. The living-area target is no more than 600 square feet total until the County confirms the applicable ADU area calculation.
-2. **Phase 2 — principal main house.** Reserve the second phase for a larger, durable forest-cabin residence with a simple service core, a flexible living wing, and future-ready utility connections.
+1. **Priority 1 — habitable two-story fire-watch-style cabin, permitted as the initial primary single-family dwelling.** Approach A is adopted. The cabin is intended to be a lawful dwelling from first occupancy, not a non-habitable accessory structure and not an ADU at initial permitting.
+2. **Phase 2 — larger residence / expansion strategy, subject to written land-use determination.** Do not presume the parcel may have two independent primary dwellings. Phase 2 must be an approved addition, replacement principal dwelling with Phase 1 conversion to an ADU, or another configuration expressly approved by County Planning and Zoning.
 3. **No building footprints are placed on the existing contour DXFs.** The current contour package is synthetic and uses a parcel proxy/offset. Its coordinates and elevation claims are not reliable enough for siting, grading, drainage, foundation elevations, septic, well, access, or setbacks. Priority is assigned in the project program, not as a surveyed location.
 
 ## 1. Contour mapping audit — important hold
@@ -42,7 +42,7 @@ A compact two-story cabin with the visual character of a historic fire-watch sta
 - upper-level observation/sitting room with controlled views and a modest balcony only if lot coverage, snow, guards, egress, and structural review allow;
 - enclosed, code-compliant stair and independently code-compliant egress from sleeping areas;
 - compact first-floor living/kitchen/bath/service core; upper level for sleeping/quiet work;
-- one kitchen maximum if approved as an ADU;
+- one complete residential kitchen for Phase 1 as the initial primary dwelling;
 - frost-protected foundation selected after geotechnical investigation; avoid assuming shallow piers or a slab is suitable before soils and frost criteria are known.
 
 The 16 ft × 20 ft footprint and 28–30 ft height are concept targets, not dimensions validated against the synthetic contours. The County's ADU "livable area" definition and treatment of stairs, lofts, balconies, and floor-area calculations must be confirmed before freezing the plan.
@@ -69,11 +69,11 @@ Before treating Priority 1 as an ADU, obtain a written Planning and Zoning inter
 
 Do not occupy a non-habitable accessory structure as a residence. Do not use a "fire watch" label to avoid dwelling, building, or fire-code review. The County's answer controls the permitted sequence.
 
-## 3. Phase 2 — principal main-house concept
+## 3. Phase 2 — larger residence / expansion concept (use classification unresolved)
 
 ### Massing and organization
 
-Use a compact, low-complexity forest-cabin residence, initially test-fit in the **1,200–1,600 sq ft** range, subject to the owner's room brief, affordability, and verified site constraints. This is a planning range, not a selected floor area.
+Use a compact, low-complexity forest-cabin residence as a massing study only. The earlier **1,200–1,600 sq ft** range is not an approved second dwelling entitlement. Before fixing area or layout, determine whether Phase 2 is an addition to Phase 1, a replacement principal dwelling with Phase 1 converted to an ADU, or another use expressly approved by the County.
 
 Recommended organization:
 - a central kitchen / dining / living room as the shared core;
@@ -88,7 +88,7 @@ Prefer a compact one-story or 1½-story form over a complicated multi-wing roof 
 
 ### Phase 2 coordination
 
-Reserve the main-house envelope and infrastructure corridors before building Phase 1. The eventual site plan must coordinate:
+Reserve a feasible future envelope and infrastructure corridors before building Phase 1, but do not assume a second detached primary dwelling is permitted. The eventual site plan must coordinate:
 - the principal-house footprint and its full required yards;
 - the detached ADU separation limit, if Phase 1 becomes an ADU;
 - well and sanitary protection areas;
