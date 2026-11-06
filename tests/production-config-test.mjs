@@ -36,8 +36,12 @@ test('production retains its identity and explicit public community OIDC configu
   assert.equal(production.vars.OIDC_ISSUER, 'https://dev-0yvxnqrjxm7dtqu4.us.auth0.com/');
   assert.deepEqual(Object.keys(production.vars).sort(), [
     'COMMUNITY_ENABLED', 'COMMUNITY_ORIGIN', 'MONGODB_DATABASE',
-    'OIDC_ADMIN_SUBJECTS', 'OIDC_CLIENT_ID', 'OIDC_ISSUER'
+    'OIDC_ADMIN_SUBJECTS', 'OIDC_CLIENT_ID', 'OIDC_ISSUER', 'ORB2_FIELD_TICK'
   ]);
+  // The Cloudflare Worker owns the Orb 2 provider beats by default: the file
+  // pins "on" so a dashboard-set "off" cannot survive a deploy (keep_vars only
+  // preserves dashboard vars the file does not declare).
+  assert.equal(production.vars.ORB2_FIELD_TICK, 'on');
 });
 
 test('production declares the confirmed D1 and R2 targets without sharing them with staging', () => {

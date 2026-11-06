@@ -87,6 +87,16 @@
   // class). Massive's XXX is deployments, not content.
   "vars": {
     "MONGODB_DATABASE": "harshalos",
+    // The Cloudflare Worker owns the Orb 2 provider beats: its own Cron
+    // Trigger runs the tick unless ORB2_FIELD_TICK=off. Pin "on" here so a
+    // dashboard-set "off" cannot survive a deploy (keep_vars only preserves
+    // dashboard vars the file does not declare). To hand the beats to the
+    // off-Cloudflare runner, set this to "off" explicitly instead — see
+    // docs/deployment/ORB2-BEAT-RUNNER.md. Free-plan CPU note: a tick can
+    // exceed the 10 ms cron budget (see the triggers comment above and
+    // docs/deployment/ORB2-CRON-PLAN.md); the publication slice and the
+    // live-read fallback keep the served field correct either way.
+    "ORB2_FIELD_TICK": "on",
     // Sole private use: community publication disabled so the site renders
     // Orb 2 field only. COMMUNITY_DB binding stays for the field itself.
     // Set ACCESS_TEAM_DOMAIN/ACCESS_AUD/OWNER_EMAIL secrets and an Access

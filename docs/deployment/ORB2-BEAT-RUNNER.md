@@ -74,8 +74,14 @@ It resolves the guards (including the name check) and prints what it would do.
 3. Confirm the beats are the runner's: the field document's `source` column and
    `X-Orb2-Field` header read `github-actions`, and `status.lastTickAt` keeps
    moving between runner fires.
-4. To go back: delete `ORB2_FIELD_TICK=off`. The Worker's own tick resumes on
-   the next minute; nothing else changes.
+4. To go back: set `ORB2_FIELD_TICK` back to `on` (or delete the variable if it
+   was only ever set in the dashboard). The Worker's own tick resumes on the
+   next minute; nothing else changes. Note the checked-in `wrangler.jsonc`
+   now pins `"ORB2_FIELD_TICK": "on"` in `vars`, and an explicit file value
+   wins over a dashboard-only value on every deploy (`keep_vars` only preserves
+   dashboard vars the file does not declare) — so returning to the Worker
+   means the file value is already `on`, and handing the beats off again
+   means setting the file value to `"off"` deliberately.
 
 Both tickers share one lease in D1 (`orb2_field_runs.lock_owner`), so even if
 both are enabled they cannot beat the same lane in the same minute. The Worker
