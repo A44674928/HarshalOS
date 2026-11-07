@@ -72,6 +72,28 @@
   outline: 1px solid rgba(126, 195, 225, 0.65);
   background: rgba(126, 195, 225, 0.15);
 }
+/* Lunar-calendar switch, sitting next to OPEN UTS in the widget header. */
+.home-lunar-toggle { display: inline-flex; align-items: center; gap: 5px; cursor: pointer; user-select: none; }
+.home-lunar-toggle input { position: absolute; opacity: 0; width: 1px; height: 1px; margin: 0; }
+.home-lunar-track {
+  position: relative;
+  width: 26px; height: 14px;
+  border: 1px solid rgba(126, 195, 225, 0.3);
+  border-radius: 999px;
+  background: rgba(126, 195, 225, 0.08);
+  transition: background 180ms ease, border-color 180ms ease;
+}
+.home-lunar-thumb {
+  position: absolute; top: 1px; left: 1px;
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  background: #a9d8ee;
+  transition: transform 180ms ease;
+}
+.home-lunar-toggle input:checked + .home-lunar-track { background: rgba(126, 195, 225, 0.3); border-color: rgba(126, 195, 225, 0.65); }
+.home-lunar-toggle input:checked + .home-lunar-track .home-lunar-thumb { transform: translateX(12px); }
+.home-lunar-toggle input:focus-visible + .home-lunar-track { outline: 1px solid rgba(126, 195, 225, 0.65); outline-offset: 1px; }
+.home-lunar-text { color: rgba(190, 216, 231, 0.56); font-size: 7px; letter-spacing: 0.14em; }
 .home-time-main {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);

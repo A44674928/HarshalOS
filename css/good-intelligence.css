@@ -316,11 +316,19 @@
 .gi-market-disclaimer { margin-top: 9px; padding-top: 8px; border-top: 1px solid var(--gi-border); color: var(--gi-faint); font-size: 8px; line-height: 1.5; }
 .gi-financial-model-dashboard {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 600px), 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr));
   gap: 12px;
-  align-items: start;
+  align-items: stretch;
 }
-.gi-financial-model-dashboard > section { min-width: 0; }
+.gi-financial-model-dashboard > section { min-width: 0; height: 100%; }
+/* The two Financial Model sides match height: the Orb 2 panel fills the row so
+   the market-context field and the charts panel end on the same line. */
+.gi-orb2-panel { display: flex; flex-direction: column; }
+.gi-orb2-panel > [data-gi-orb2-host] { flex: 1 1 auto; display: flex; flex-direction: column; min-height: 0; }
+.gi-orb2-panel .gi-orb2 { flex: 1 1 auto; min-height: 560px; }
+.gi-orb2-panel .gi-orb2-layout,
+.gi-orb2-panel .gi-orb2-stage { flex: 1 1 auto; min-height: 0; }
+.gi-orb2-panel .gi-orb2-canvas-shell { flex: 1 1 auto; height: auto; min-height: 420px; }
 .gi-market-charts-panel {
   min-width: 0;
   min-height: 330px;

@@ -120,17 +120,100 @@
     return days.join("");
   }
 
+  function utcDateOnly(date) {
+    return [date.getUTCFullYear(), String(date.getUTCMonth() + 1).padStart(2, "0"), String(date.getUTCDate()).padStart(2, "0")].join("-");
+  }
+
+  /* Lunar month for the cursor's Gregorian month: the lunation whose new Moon
+     falls inside the month, otherwise the lunation containing the 1st. Phases
+     come from the display-only celestial model; if it is unavailable the widget
+     falls back to the plain Gregorian grid rather than fabricating phases. */
+  function lunarCycleFor(cursor, today = new Date()) {
+    const model = window.HOSCelestialContext;
+    if (!model || typeof model.moonAt !== "function") return null;
+    try {
+      const year = cursor.getFullYear();
+      const month = cursor.getMonth();
+      const monthStart = Date.UTC(year, month, 1);
+      const monthEnd = Date.UTC(year, month + 1, 1);
+      const todayMs = today.getTime();
+      const atStart = model.moonAt(new Date(monthStart));
+      const candidates = [atStart.lastNewMoon, atStart.nextNewMoon].filter(Boolean);
+      const inMonth = candidates.find(event => event.time >= monthStart && event.time < monthEnd);
+      /* If today is in the displayed month but before this month's new Moon,
+         show the lunation that still contains today (and the 1st). */
+      const startEvent = (todayMs >= monthStart && todayMs < monthEnd && inMonth && todayMs < inMonth.time)
+        ? atStart.lastNewMoon
+        : (inMonth || atStart.lastNewMoon || atStart.nextNewMoon);
+      if (!startEvent) return null;
+      const nextEvent = model.moonAt(new Date(startEvent.time)).nextNewMoon;
+      const lengthDays = nextEvent
+        ? Math.max(29, Math.min(30, Math.round((nextEvent.time - startEvent.time) / 86_400_000)))
+        : 29;
+      return { start: new Date(startEvent.time), lengthDays };
+    } catch {
+      return null;
+    }
+  }
+
+  function buildLunarCalendarDays(cursor, today) {
+    const cycle = lunarCycleFor(cursor);
+    if (!cycle) return buildCalendarDays(cursor, today);
+    const model = window.HOSCelestialContext;
+    const startUtc = Date.UTC(cycle.start.getUTCFullYear(), cycle.start.getUTCMonth(), cycle.start.getUTCDate());
+    const offset = (cycle.start.getUTCDay() + 6) % 7; // Monday-first display.
+    const slots = Math.ceil((offset + cycle.lengthDays) / 7) * 7;
+    const todayString = utcDateOnly(today);
+    const days = [];
+    for (let slot = 0; slot < slots; slot++) {
+      const lunarDay = slot - offset + 1;
+      if (lunarDay < 1 || lunarDay > cycle.lengthDays) {
+        days.push('<span class="home-cal-day outside" aria-hidden="true"></span>');
+        continue;
+      }
+      const date = new Date(startUtc + (lunarDay - 1) * 86_400_000);
+      let glyph = "●";
+      let phaseName = "lunar day";
+      let principal = false;
+      try {
+        const moon = model.moonAt(date);
+        glyph = moon.glyph;
+        phaseName = moon.name;
+        principal = moon.key === "new-moon" || moon.key === "full-moon";
+      } catch { /* keep the neutral marker */ }
+      const dateString = utcDateOnly(date);
+      const current = dateString === todayString;
+      days.push(`<span class="home-cal-day lunar${principal ? " principal" : ""}${current ? " today" : ""}" title="${dateString} · ${phaseName}"${current ? ' aria-current="date"' : ""}><span aria-hidden="true">${glyph}</span><small>${lunarDay}</small></span>`);
+    }
+    return days.join("");
+  }
+
   let homeCalendarCursor = null;
+  let homeCalendarLunar = false;
   let homeWidgetOpen = null;
+
+  const GREGORIAN_NOTE = "Gregorian calendar follows device-local date. UDate is a separate, approximate elapsed-time coordinate.";
+  const LUNAR_NOTE = "Lunar month starts at the nearest new Moon and is laid out on the Monday-first week grid; phase glyphs are approximate geocentric estimates, display-only.";
 
   function renderCalendar(now) {
     const grid = document.getElementById("home-calendar-days");
     const month = document.getElementById("home-calendar-month");
     const dateLabel = document.getElementById("home-calendar-date");
+    const note = document.getElementById("home-calendar-note");
     if (!grid || !month) return;
     if (!homeCalendarCursor) homeCalendarCursor = new Date(now.getFullYear(), now.getMonth(), 1);
-    month.textContent = homeCalendarCursor.toLocaleDateString(undefined, { month: "long", year: "numeric" });
-    grid.innerHTML = buildCalendarDays(homeCalendarCursor, now);
+    const monthLabel = homeCalendarCursor.toLocaleDateString(undefined, { month: "long", year: "numeric" });
+    if (homeCalendarLunar) {
+      month.textContent = `Lunar · ${monthLabel}`;
+      grid.setAttribute("aria-label", "Lunar month calendar");
+      grid.innerHTML = buildLunarCalendarDays(homeCalendarCursor, now);
+      if (note) note.textContent = LUNAR_NOTE;
+    } else {
+      month.textContent = monthLabel;
+      grid.setAttribute("aria-label", "Gregorian month calendar");
+      grid.innerHTML = buildCalendarDays(homeCalendarCursor, now);
+      if (note) note.textContent = GREGORIAN_NOTE;
+    }
     if (dateLabel) dateLabel.textContent = now.toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric", year: "numeric" });
   }
 
@@ -170,6 +253,10 @@
       renderCalendar(new Date());
     });
     open?.addEventListener("click", () => homeWidgetOpen && homeWidgetOpen());
+    document.getElementById("home-lunar-switch")?.addEventListener("change", event => {
+      homeCalendarLunar = !!(event.target && event.target.checked);
+      renderCalendar(new Date());
+    });
     document.getElementById("home-widget-toggle")?.addEventListener("click", () => {
       setHomeWidgetCollapsed(!widget.classList.contains("is-collapsed"));
     });

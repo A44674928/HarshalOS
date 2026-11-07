@@ -436,11 +436,16 @@ body.desktop-live .hud { opacity: 1; transform: none; }
 
 .desktop-motto {
   position: absolute;
-  right: 5vw; top: 50%;
+  top: 50%;
   transform: translateY(-50%);
+  /* Keep the motto in the center lane: right of the icon grid and left of the
+     floating clock/calendar widget, so the two never overlap each other. */
+  left: calc(18px + min(400px, calc(100% - 36px)) + clamp(24px, 4vw, 64px));
+  right: calc(clamp(20px, 4vw, 58px) + min(314px, calc(100vw - 36px)) + clamp(20px, 3vw, 44px));
+  max-width: 380px;
+  margin-left: auto;
   text-align: right;
   pointer-events: none;
-  max-width: 380px;
 }
 .motto-orb {
   width: 120px; height: 120px;
