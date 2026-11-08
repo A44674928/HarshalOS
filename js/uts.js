@@ -120,22 +120,32 @@
     return days.join("");
   }
 
-  function utcDateOnly(date) {
-    return [date.getUTCFullYear(), String(date.getUTCMonth() + 1).padStart(2, "0"), String(date.getUTCDate()).padStart(2, "0")].join("-");
+  /* Lunar calendar days are device-local calendar days, matching the Gregorian
+     grid above: the lunation start instant is mapped to its local date and each
+     cell is one local day, evaluated at local noon so the phase glyph does not
+     flicker across UTC midnight. */
+  function toLocalDay(date) {
+    return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  }
+
+  function addLocalDays(localDay, count) {
+    return new Date(localDay.getFullYear(), localDay.getMonth(), localDay.getDate() + count);
   }
 
   /* Lunar month for the cursor's Gregorian month: the lunation whose new Moon
-     falls inside the month, otherwise the lunation containing the 1st. Phases
-     come from the display-only celestial model; if it is unavailable the widget
-     falls back to the plain Gregorian grid rather than fabricating phases. */
+     falls inside the month, otherwise the lunation containing the 1st — or,
+     when today sits in the displayed month before that new Moon, the lunation
+     that contains today. Phases come from the display-only celestial model; if
+     it is unavailable the widget falls back to the plain Gregorian grid rather
+     than fabricating phases. */
   function lunarCycleFor(cursor, today = new Date()) {
     const model = window.HOSCelestialContext;
     if (!model || typeof model.moonAt !== "function") return null;
     try {
       const year = cursor.getFullYear();
       const month = cursor.getMonth();
-      const monthStart = Date.UTC(year, month, 1);
-      const monthEnd = Date.UTC(year, month + 1, 1);
+      const monthStart = new Date(year, month, 1).getTime();
+      const monthEnd = new Date(year, month + 1, 1).getTime();
       const todayMs = today.getTime();
       const atStart = model.moonAt(new Date(monthStart));
       const candidates = [atStart.lastNewMoon, atStart.nextNewMoon].filter(Boolean);
@@ -150,20 +160,18 @@
       const lengthDays = nextEvent
         ? Math.max(29, Math.min(30, Math.round((nextEvent.time - startEvent.time) / 86_400_000)))
         : 29;
-      return { start: new Date(startEvent.time), lengthDays };
+      return { start: toLocalDay(new Date(startEvent.time)), lengthDays };
     } catch {
       return null;
     }
   }
 
-  function buildLunarCalendarDays(cursor, today) {
-    const cycle = lunarCycleFor(cursor);
-    if (!cycle) return buildCalendarDays(cursor, today);
+  function buildLunarCalendarDays(cycle, today) {
     const model = window.HOSCelestialContext;
-    const startUtc = Date.UTC(cycle.start.getUTCFullYear(), cycle.start.getUTCMonth(), cycle.start.getUTCDate());
-    const offset = (cycle.start.getUTCDay() + 6) % 7; // Monday-first display.
+    const start = cycle.start;
+    const offset = (start.getDay() + 6) % 7; // Monday-first display.
     const slots = Math.ceil((offset + cycle.lengthDays) / 7) * 7;
-    const todayString = utcDateOnly(today);
+    const todayString = dateOnly(today);
     const days = [];
     for (let slot = 0; slot < slots; slot++) {
       const lunarDay = slot - offset + 1;
@@ -171,17 +179,17 @@
         days.push('<span class="home-cal-day outside" aria-hidden="true"></span>');
         continue;
       }
-      const date = new Date(startUtc + (lunarDay - 1) * 86_400_000);
+      const date = addLocalDays(start, lunarDay - 1);
       let glyph = "●";
       let phaseName = "lunar day";
       let principal = false;
       try {
-        const moon = model.moonAt(date);
+        const moon = model.moonAt(new Date(date.getFullYear(), date.getMonth(), date.getDate(), 12));
         glyph = moon.glyph;
         phaseName = moon.name;
         principal = moon.key === "new-moon" || moon.key === "full-moon";
       } catch { /* keep the neutral marker */ }
-      const dateString = utcDateOnly(date);
+      const dateString = dateOnly(date);
       const current = dateString === todayString;
       days.push(`<span class="home-cal-day lunar${principal ? " principal" : ""}${current ? " today" : ""}" title="${dateString} · ${phaseName}"${current ? ' aria-current="date"' : ""}><span aria-hidden="true">${glyph}</span><small>${lunarDay}</small></span>`);
     }
@@ -193,7 +201,7 @@
   let homeWidgetOpen = null;
 
   const GREGORIAN_NOTE = "Gregorian calendar follows device-local date. UDate is a separate, approximate elapsed-time coordinate.";
-  const LUNAR_NOTE = "Lunar month starts at the nearest new Moon and is laid out on the Monday-first week grid; phase glyphs are approximate geocentric estimates, display-only.";
+  const LUNAR_NOTE = "Lunar month runs from the new Moon shown in the header; cells are device-local days on the Monday-first week grid, with approximate geocentric phase glyphs evaluated at local noon. Display-only.";
 
   function renderCalendar(now) {
     const grid = document.getElementById("home-calendar-days");
@@ -203,11 +211,22 @@
     if (!grid || !month) return;
     if (!homeCalendarCursor) homeCalendarCursor = new Date(now.getFullYear(), now.getMonth(), 1);
     const monthLabel = homeCalendarCursor.toLocaleDateString(undefined, { month: "long", year: "numeric" });
-    if (homeCalendarLunar) {
-      month.textContent = `Lunar · ${monthLabel}`;
-      grid.setAttribute("aria-label", "Lunar month calendar");
-      grid.innerHTML = buildLunarCalendarDays(homeCalendarCursor, now);
+    const cycle = homeCalendarLunar ? lunarCycleFor(homeCalendarCursor, now) : null;
+    if (homeCalendarLunar && cycle) {
+      const end = addLocalDays(cycle.start, cycle.lengthDays - 1);
+      const fmt = d => d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+      const span = `${fmt(cycle.start)} – ${fmt(end)} ${end.getFullYear()}`;
+      month.textContent = `Lunar · ${span}`;
+      grid.setAttribute("aria-label", `Lunar month calendar, ${span}`);
+      grid.innerHTML = buildLunarCalendarDays(cycle, now);
       if (note) note.textContent = LUNAR_NOTE;
+    } else if (homeCalendarLunar) {
+      /* Celestial model unavailable: keep the Gregorian grid rather than
+         fabricating lunar phases. */
+      month.textContent = monthLabel;
+      grid.setAttribute("aria-label", "Gregorian month calendar");
+      grid.innerHTML = buildCalendarDays(homeCalendarCursor, now);
+      if (note) note.textContent = GREGORIAN_NOTE;
     } else {
       month.textContent = monthLabel;
       grid.setAttribute("aria-label", "Gregorian month calendar");

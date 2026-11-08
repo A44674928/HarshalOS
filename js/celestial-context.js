@@ -115,7 +115,9 @@
 
     const lunationMs = nextNewMoon.time - lastNewMoon.time;
     const cycleFraction = Math.max(0, Math.min(0.999999999, (instant - lastNewMoon.time) / lunationMs));
-    const phaseIndex = Math.floor((cycleFraction + 0.0625) * 8) % 8;
+    /* Named principal phases only within about ±0.92 day of the syzygy, so a
+       day clearly before/after new Moon reads as a crescent, not "New Moon". */
+    const phaseIndex = Math.floor((cycleFraction + 0.03125) * 8) % 8;
     const phase = MOON_PHASES[phaseIndex];
     const illuminationFraction = (1 - Math.cos(2 * Math.PI * cycleFraction)) / 2;
     const ageDays = (instant - lastNewMoon.time) / DAY_MS;
