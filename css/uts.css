@@ -171,6 +171,7 @@
 .home-cal-day.uts small { color: rgba(190, 216, 231, 0.55); font-size: 6px; font-variant-numeric: tabular-nums; line-height: 1; }
 .home-cal-day.uts.today { width: auto; height: auto; min-height: 22px; margin: 0; border-radius: 6px; }
 .home-cal-note { margin: 7px 0 0; color: rgba(190, 216, 231, 0.45); font: 8px/1.45 var(--sans); }
+.home-ops-note { color: rgba(244, 206, 123, 0.55); }
 
 /* Full UTS app */
 .uts-watch-panel {
