@@ -175,6 +175,7 @@
               </section>
 
               <div class="gi-financial-model-dashboard" data-gi-financial-model-panel aria-label="The Harshal Priyavadan Patel Financial Model" hidden>
+                <p class="gi-muted" data-gi-model-credit>Indicator design inspired by the original Pine Script v4 models retrieved from TradingView — credited to LazyBear (two scripts) and Rashad (one script) per the project's source records. Design inspiration only: the v4 code is not archived here and no source-runtime parity with these JS calculations is claimed (see <code>scripts/pine/README.md</code>).</p>
                 <section class="gi-market-charts-panel" data-gi-markets-panel aria-label="Financial Model market charts" hidden>
                   <div class="gi-chart-toolbar">
                     <div><p class="gi-eyebrow">HPP FINANCIAL MODEL · MARKET CHARTS</p><h3>Price / Volume Context</h3><p>Provider-attributed OHLCV · VFI · logarithmic Fibonacci bands · WaveTrend</p></div>
