@@ -72,10 +72,10 @@
   outline: 1px solid rgba(126, 195, 225, 0.65);
   background: rgba(126, 195, 225, 0.15);
 }
-/* Lunar-calendar switch, sitting next to OPEN UTS in the widget header. */
-.home-lunar-toggle { display: inline-flex; align-items: center; gap: 5px; cursor: pointer; user-select: none; }
-.home-lunar-toggle input { position: absolute; opacity: 0; width: 1px; height: 1px; margin: 0; }
-.home-lunar-track {
+/* Calendar-mode switches (LUNAR / UTS), sitting next to OPEN UTS in the widget header. */
+.home-cal-switch { display: inline-flex; align-items: center; gap: 5px; cursor: pointer; user-select: none; }
+.home-cal-switch input { position: absolute; opacity: 0; width: 1px; height: 1px; margin: 0; }
+.home-cal-switch-track {
   position: relative;
   width: 26px; height: 14px;
   border: 1px solid rgba(126, 195, 225, 0.3);
@@ -83,17 +83,17 @@
   background: rgba(126, 195, 225, 0.08);
   transition: background 180ms ease, border-color 180ms ease;
 }
-.home-lunar-thumb {
+.home-cal-switch-thumb {
   position: absolute; top: 1px; left: 1px;
   width: 10px; height: 10px;
   border-radius: 50%;
   background: #a9d8ee;
   transition: transform 180ms ease;
 }
-.home-lunar-toggle input:checked + .home-lunar-track { background: rgba(126, 195, 225, 0.3); border-color: rgba(126, 195, 225, 0.65); }
-.home-lunar-toggle input:checked + .home-lunar-track .home-lunar-thumb { transform: translateX(12px); }
-.home-lunar-toggle input:focus-visible + .home-lunar-track { outline: 1px solid rgba(126, 195, 225, 0.65); outline-offset: 1px; }
-.home-lunar-text { color: rgba(190, 216, 231, 0.56); font-size: 7px; letter-spacing: 0.14em; }
+.home-cal-switch input:checked + .home-cal-switch-track { background: rgba(126, 195, 225, 0.3); border-color: rgba(126, 195, 225, 0.65); }
+.home-cal-switch input:checked + .home-cal-switch-track .home-cal-switch-thumb { transform: translateX(12px); }
+.home-cal-switch input:focus-visible + .home-cal-switch-track { outline: 1px solid rgba(126, 195, 225, 0.65); outline-offset: 1px; }
+.home-cal-switch-text { color: rgba(190, 216, 231, 0.56); font-size: 7px; letter-spacing: 0.14em; }
 .home-time-main {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
@@ -160,6 +160,16 @@
   background: rgba(244, 206, 123, 0.12);
   color: #f4ce7b;
 }
+/* Lunar calendar cells: phase glyph over the lunar day number. */
+.home-cal-day.lunar { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; font-size: 10px; line-height: 1; }
+.home-cal-day.lunar small { color: rgba(190, 216, 231, 0.55); font-size: 6px; font-variant-numeric: tabular-nums; line-height: 1; }
+.home-cal-day.lunar.principal { border-radius: 6px; box-shadow: inset 0 0 0 1px rgba(244, 206, 123, 0.55); }
+.home-cal-day.lunar.today { width: auto; height: auto; min-height: 22px; margin: 0; border-radius: 6px; }
+/* UTS calendar cells: Gregorian day number over its UDay-since-anchor coordinate. */
+.home-cal-day.uts { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; line-height: 1; }
+.home-cal-day.uts strong { font-size: 8px; font-weight: 600; color: rgba(221, 235, 243, 0.72); }
+.home-cal-day.uts small { color: rgba(190, 216, 231, 0.55); font-size: 6px; font-variant-numeric: tabular-nums; line-height: 1; }
+.home-cal-day.uts.today { width: auto; height: auto; min-height: 22px; margin: 0; border-radius: 6px; }
 .home-cal-note { margin: 7px 0 0; color: rgba(190, 216, 231, 0.45); font: 8px/1.45 var(--sans); }
 
 /* Full UTS app */
@@ -270,6 +280,7 @@
   }
   .home-time-widget.is-collapsed .home-widget-label,
   .home-time-widget.is-collapsed .home-uts-open { display: none; }
+  .home-time-widget.is-collapsed .home-cal-switch { display: none; }
   .home-time-widget.is-collapsed .home-time-body { display: none; }
   .home-time-widget .home-widget-toggle { display: inline-flex; }
   .home-time-widget.is-collapsed .home-widget-toggle {
