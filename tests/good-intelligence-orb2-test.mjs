@@ -1048,6 +1048,11 @@ test("Good Intelligence lazily opens the combined Financial Model and keeps the 
   assert.match(appSource, /\["news", "orb2", "nabdiscs"\]\.includes/, "the view switcher accepts the combined Financial Model and NAB Discs sibling");
   assert.match(appSource, /state\.orb2Engine = Orb2\.mount/, "the renderer mounts only through the Orb 2 module");
   assert.match(appSource, /no signal, valuation, forecast, recommendation, trade, or authority is produced/i);
+  assert.ok(appSource.indexOf("data-gi-financial-model-panel") < appSource.indexOf("data-gi-model-credit")
+    && appSource.indexOf("data-gi-model-credit") < appSource.indexOf("data-gi-markets-panel"),
+    "the Pine v4 credit line is the first child of the Financial Model dashboard");
+  assert.match(appCss, /\.gi-financial-model-dashboard > \[data-gi-model-credit\] \{ grid-column: 1 \/ -1; \}/,
+    "the credit line spans the full grid row so only the two section panels take the 1fr column tracks");
 });
 
 test("the branded combined financial-model package is explicit, display-only, and maps to Good Intelligence", async t => {

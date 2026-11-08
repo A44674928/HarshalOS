@@ -320,6 +320,9 @@
   gap: 12px;
   align-items: stretch;
 }
+/* The Pine v4 credit line spans the full row so it never becomes a column
+   track: only the two section panels occupy the auto-fit 1fr columns. */
+.gi-financial-model-dashboard > [data-gi-model-credit] { grid-column: 1 / -1; }
 .gi-financial-model-dashboard > section { min-width: 0; height: 100%; }
 /* The two Financial Model sides match height: the Orb 2 panel fills the row so
    the market-context field and the charts panel end on the same line. */
