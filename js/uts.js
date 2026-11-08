@@ -196,12 +196,49 @@
     return days.join("");
   }
 
+  /* UTS coordinate of an instant: UDay elapsed since the model anchor
+     (2026-10-02 00:00 UTC). One Earth day = c UDay = 299,792.458 UDay. */
+  function uDaySinceReference(date) {
+    return (date.getTime() - REFERENCE_MS) * C / 1000 / US_PER_UDAY;
+  }
+
+  const compactUDate = new Intl.NumberFormat(undefined, { notation: "compact", maximumSignificantDigits: 6 });
+
+  /* UTS calendar: the same Monday-first month grid, but each cell carries the
+     UDay-since-anchor coordinate of its local midnight (and the exact UDate in
+     the hover title). Display-only, like every UTS value. */
+  function buildUTSCalendarDays(cursor, today) {
+    const year = cursor.getFullYear();
+    const month = cursor.getMonth();
+    const first = new Date(year, month, 1);
+    const offset = (first.getDay() + 6) % 7; // Monday-first display.
+    const count = new Date(year, month + 1, 0).getDate();
+    const slots = Math.ceil((offset + count) / 7) * 7;
+    const todayString = dateOnly(today);
+    const days = [];
+    for (let slot = 0; slot < slots; slot++) {
+      const day = slot - offset + 1;
+      if (day < 1 || day > count) {
+        days.push('<span class="home-cal-day outside" aria-hidden="true"></span>');
+        continue;
+      }
+      const midnight = new Date(year, month, day);
+      const dateString = dateOnly(midnight);
+      const current = dateString === todayString;
+      let title = dateString;
+      try { title = formatUDate(midnight); } catch { /* keep the plain date */ }
+      days.push(`<span class="home-cal-day uts${current ? " today" : ""}" title="${title}"${current ? ' aria-current="date"' : ""}><strong>${day}</strong><small>${compactUDate.format(Math.round(uDaySinceReference(midnight)))}</small></span>`);
+    }
+    return days.join("");
+  }
+
   let homeCalendarCursor = null;
-  let homeCalendarLunar = false;
+  let homeCalendarMode = "gregorian"; // "gregorian" | "lunar" | "uts"
   let homeWidgetOpen = null;
 
   const GREGORIAN_NOTE = "Gregorian calendar follows device-local date. UDate is a separate, approximate elapsed-time coordinate.";
   const LUNAR_NOTE = "Lunar month runs from the new Moon shown in the header; cells are device-local days on the Monday-first week grid, with approximate geocentric phase glyphs evaluated at local noon. Display-only.";
+  const utsNote = now => `UTS cells show each day's UDay coordinate (UDay since the model anchor 2026-10-02 00:00 UTC, local midnight; 1 Earth day = c UDay = 299,792.458 UDay); hover a day for its full UDate. Now: ${formatUDateScientific(now)}. Display-only — UTS has no authority effect.`;
 
   function renderCalendar(now) {
     const grid = document.getElementById("home-calendar-days");
@@ -211,8 +248,8 @@
     if (!grid || !month) return;
     if (!homeCalendarCursor) homeCalendarCursor = new Date(now.getFullYear(), now.getMonth(), 1);
     const monthLabel = homeCalendarCursor.toLocaleDateString(undefined, { month: "long", year: "numeric" });
-    const cycle = homeCalendarLunar ? lunarCycleFor(homeCalendarCursor, now) : null;
-    if (homeCalendarLunar && cycle) {
+    const cycle = homeCalendarMode === "lunar" ? lunarCycleFor(homeCalendarCursor, now) : null;
+    if (homeCalendarMode === "lunar" && cycle) {
       const end = addLocalDays(cycle.start, cycle.lengthDays - 1);
       const fmt = d => d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
       const span = `${fmt(cycle.start)} – ${fmt(end)} ${end.getFullYear()}`;
@@ -220,14 +257,14 @@
       grid.setAttribute("aria-label", `Lunar month calendar, ${span}`);
       grid.innerHTML = buildLunarCalendarDays(cycle, now);
       if (note) note.textContent = LUNAR_NOTE;
-    } else if (homeCalendarLunar) {
-      /* Celestial model unavailable: keep the Gregorian grid rather than
-         fabricating lunar phases. */
-      month.textContent = monthLabel;
-      grid.setAttribute("aria-label", "Gregorian month calendar");
-      grid.innerHTML = buildCalendarDays(homeCalendarCursor, now);
-      if (note) note.textContent = GREGORIAN_NOTE;
+    } else if (homeCalendarMode === "uts") {
+      month.textContent = `UTS · ${monthLabel}`;
+      grid.setAttribute("aria-label", `UTS calendar, ${monthLabel}`);
+      grid.innerHTML = buildUTSCalendarDays(homeCalendarCursor, now);
+      if (note) note.textContent = utsNote(now);
     } else {
+      /* Gregorian mode — and the fallback when the celestial model is
+         unavailable in lunar mode — never fabricates UTS/lunar values. */
       month.textContent = monthLabel;
       grid.setAttribute("aria-label", "Gregorian month calendar");
       grid.innerHTML = buildCalendarDays(homeCalendarCursor, now);
@@ -272,9 +309,19 @@
       renderCalendar(new Date());
     });
     open?.addEventListener("click", () => homeWidgetOpen && homeWidgetOpen());
-    document.getElementById("home-lunar-switch")?.addEventListener("change", event => {
-      homeCalendarLunar = !!(event.target && event.target.checked);
+    const setCalendarMode = mode => {
+      homeCalendarMode = mode;
+      const lunar = document.getElementById("home-lunar-switch");
+      const uts = document.getElementById("home-uts-cal-switch");
+      if (lunar) lunar.checked = mode === "lunar";
+      if (uts) uts.checked = mode === "uts";
       renderCalendar(new Date());
+    };
+    document.getElementById("home-lunar-switch")?.addEventListener("change", event => {
+      setCalendarMode(event.target && event.target.checked ? "lunar" : "gregorian");
+    });
+    document.getElementById("home-uts-cal-switch")?.addEventListener("change", event => {
+      setCalendarMode(event.target && event.target.checked ? "uts" : "gregorian");
     });
     document.getElementById("home-widget-toggle")?.addEventListener("click", () => {
       setHomeWidgetCollapsed(!widget.classList.contains("is-collapsed"));

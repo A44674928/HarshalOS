@@ -170,10 +170,15 @@
         <span class="home-widget-label">TIME · SKY · CALENDAR</span>
         <div class="home-widget-actions">
           <button id="home-widget-toggle" class="home-widget-toggle" type="button" aria-controls="home-time-body" aria-expanded="true" aria-label="Minimize the clock, celestial context, and calendar" title="Minimize the clock, celestial context, and calendar">–</button>
-          <label class="home-lunar-toggle" for="home-lunar-switch" title="Show the lunar calendar instead of the Gregorian one">
+          <label class="home-cal-switch" for="home-lunar-switch" title="Show the lunar calendar instead of the Gregorian one">
             <input type="checkbox" id="home-lunar-switch" role="switch" aria-label="Show the lunar calendar instead of the Gregorian calendar">
-            <span class="home-lunar-track" aria-hidden="true"><span class="home-lunar-thumb"></span></span>
-            <span class="home-lunar-text">LUNAR</span>
+            <span class="home-cal-switch-track" aria-hidden="true"><span class="home-cal-switch-thumb"></span></span>
+            <span class="home-cal-switch-text">LUNAR</span>
+          </label>
+          <label class="home-cal-switch" for="home-uts-cal-switch" title="Show the calendar in UTS coordinates">
+            <input type="checkbox" id="home-uts-cal-switch" role="switch" aria-label="Show the calendar in UTS coordinates">
+            <span class="home-cal-switch-track" aria-hidden="true"><span class="home-cal-switch-thumb"></span></span>
+            <span class="home-cal-switch-text">UTS</span>
           </label>
           <button id="home-uts-open" class="home-uts-open" type="button" aria-label="Open UTS Watch and Converter">OPEN UTS ↗</button>
         </div>
