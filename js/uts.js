@@ -202,11 +202,17 @@
     return (date.getTime() - REFERENCE_MS) * C / 1000 / US_PER_UDAY;
   }
 
+  /* Calendar start date. Calendar day coordinates are counted from this date
+     (local midnight); days before it appear negative. This is a calendar-only
+     epoch — the UTS model's own UDate anchor above is unchanged. */
+  const CALENDAR_START_DATE = new Date(1900, 0, 1); // January 1, 1900, local midnight
+  const uDaySinceCalendarStart = date => uDaySinceReference(date) - uDaySinceReference(CALENDAR_START_DATE);
+
   const compactUDate = new Intl.NumberFormat(undefined, { notation: "compact", maximumSignificantDigits: 6 });
 
   /* UTS calendar: the same Monday-first month grid, but each cell carries the
-     UDay-since-anchor coordinate of its local midnight (and the exact UDate in
-     the hover title). Display-only, like every UTS value. */
+     signed UDay coordinate since the calendar start date of its local midnight
+     (and the exact UDate in the hover title). Display-only, like every UTS value. */
   function buildUTSCalendarDays(cursor, today) {
     const year = cursor.getFullYear();
     const month = cursor.getMonth();
@@ -227,7 +233,7 @@
       const current = dateString === todayString;
       let title = dateString;
       try { title = formatUDate(midnight); } catch { /* keep the plain date */ }
-      days.push(`<span class="home-cal-day uts${current ? " today" : ""}" title="${title}"${current ? ' aria-current="date"' : ""}><strong>${day}</strong><small>${compactUDate.format(Math.round(uDaySinceReference(midnight)))}</small></span>`);
+      days.push(`<span class="home-cal-day uts${current ? " today" : ""}" title="${title}"${current ? ' aria-current="date"' : ""}><strong>${day}</strong><small>${compactUDate.format(Math.round(uDaySinceCalendarStart(midnight)))}</small></span>`);
     }
     return days.join("");
   }
@@ -238,7 +244,7 @@
 
   const GREGORIAN_NOTE = "Gregorian calendar follows device-local date. UDate is a separate, approximate elapsed-time coordinate.";
   const LUNAR_NOTE = "Lunar month runs from the new Moon shown in the header; cells are device-local days on the Monday-first week grid, with approximate geocentric phase glyphs evaluated at local noon. Display-only.";
-  const utsNote = now => `UTS cells show each day's UDay coordinate (UDay since the model anchor 2026-10-02 00:00 UTC, local midnight; 1 Earth day = c UDay = 299,792.458 UDay); hover a day for its full UDate. Now: ${formatUDateScientific(now)}. Display-only — UTS has no authority effect.`;
+  const utsNote = now => `UTS cells show each day's signed UDay coordinate since the calendar start ${dateOnly(CALENDAR_START_DATE)} (local midnight; 1 Earth day = c UDay = 299,792.458 UDay) — days before the start are negative. Hover a day for its full UDate. Now: ${formatUDateScientific(now)}. Display-only — UTS has no authority effect.`;
 
   function renderCalendar(now) {
     const grid = document.getElementById("home-calendar-days");
